@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raycasting Game Engine - Level 2</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: #111; color: #fff; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    #game-container { position: relative; width: 640px; height: 400px; border: 2px solid #444; }
+    canvas { width: 100%; height: 100%; background: #000; display: block; image-rendering: pixelated; }
+    #hud { position: absolute; bottom: 0; left: 0; width: 100%; height: 50px; background: rgba(0, 0, 0, 0.75); display: flex; justify-content: space-around; align-items: center; border-top: 2px solid #555; font-size: 14px; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="canvas" width="320" height="200"></canvas>
+    <div id="hud">
+      <div>HEALTH: <span id="hud-health">100</span></div>
+      <div>WEAPON: <span id="hud-weapon">Pistol</span></div>
+      <div>AMMO: <span id="hud-ammo">12/12</span></div>
+      <div>STATUS: <span id="hud-status">READY</span></div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. CONTROL SCHEME & INPUT HANDLING
+    // ==========================================
+    class InputHandler {
+      constructor() {
+        this.keys = {};
+        window.addEventListener('keydown', (e) => this.keys[e.code] = true);
+        window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+      }
+      isPressed(code) { return !!this.keys[code]; }
+    }
+
+    // ==========================================
+    // 2. MAP & COLLISION SYSTEM
+    // ==========================================
+    class MapManager {
+      constructor() {
+        // Expanded Level 2 Map Grid (16x12): 0 = Empty, 1-3 = Wall Types, 9 = Exit Door
+        this.grid = [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+          [1,0,2,2,0,0,1,0,3,3,3,3,0,2,0,1],
+          [1,0,2,0,0,0,0,0,0,0,0,3,0,2,0,1],
+          [1,0,0,0,0,1,1,1,0,0,0,3,0,2,0,1],
+          [1,0,1,1,0,1,0,1,0,0,0,0,0,0,0,1],
+          [1,0,0,1,0,1,0,1,1,1,1,0,0,0,0,1],
+          [1,0,0,1,0,0,0,0,0,0,1,0,3,3,0,1],
+          [1,0,0,1,1,1,1,0,0,0,1,0,3,0,0,1],
+          [1,0,0,0,0,0,0,0,2,0,0,0,3,0,9,1],
+          [1,0,0,0,0,0,0,0,2,0,0,0,0,0,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        this.width = this.grid[0].length;
+        this.height = this.grid.length;
+        this.tileSize = 64;
+      }
+
+      getTile(x, y) {
+        const gridX = Math.floor(x / this.tileSize);
+        const gridY = Math.floor(y / this.tileSize);
+        if (gridX < 0 || gridX >= this.width || gridY < 0 || gridY >= this.height) return 1;
+        return this.grid[gridY][gridX];
+      }
+
+      isSolid(x, y) {
+        const tile = this.getTile(x, y);
+        return tile >= 1 && tile !== 9;
+      }
+
+      isRayBlockedByWall(x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dist = Math.hypot(dx, dy);
+        const steps = Math.ceil(dist / 8);
+        const stepX = dx / steps;
+        const stepY = dy / steps;
+
+        let currX = x1;
+        let currY = y1;
+
+        for (let i = 0; i < steps; i++) {
+          currX += stepX;
+          currY += stepY;
+          if (this.isSolid(currX, currY)) return true;
+        }
+        return false;
+      }
+    }
+
+    // ==========================================
+    // 3. MONSTER SYSTEM
+    // ==========================================
+    class Monster {
+      constructor(x, y, color = '#f00', health = 50) {
+        this.x = x;
+        this.y = y;
+        this.radius = 16;
+        this.color = color;
+        this.health = health;
+        this.isAlive = true;
+        this.speed = 40;
+      }
+
+      takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+          this.health = 0;
+          this.isAlive = false;
+        }
+      }
+
+      update(dt, player, map) {
+        if (!this.isAlive) return;
+
+        // Simple AI: Move towards player if line of sight is clear
+        if (!map.isRayBlockedByWall(this.x, this.y, player.x, player.y)) {
+          const dx = player.x - this.x;
+          const dy = player.y - this.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist > 20) {
+            const nextX = this.x + (dx / dist) * this.speed * dt;
+            const nextY = this.y + (dy / dist) * this.speed * dt;
+
+            if (!map.isSolid(nextX, this.y)) this.x = nextX;
+            if (!map.isSolid(this.x, nextY)) this.y = nextY;
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // 4. WEAPONS SYSTEM
+    // ==========================================
+    class Weapon {
+      constructor(name, ammoCapacity, damage, fireRate, reloadTime, color) {
+        this.name = name;
+        this.maxAmmo = ammoCapacity;
+        this.currentAmmo = ammoCapacity;
+        this.damage = damage;
+        this.fireRate = fireRate;
+        this.reloadTime = reloadTime;
+        this.isReloading = false;
+        this.lastFired = 0;
+        this.color = color;
+      }
+
+      shoot(now) {
+        if (this.isReloading || now - this.lastFired < this.fireRate) return false;
+        if (this.currentAmmo <= 0) {
+          this.reload();
+          return false;
+        }
+        this.currentAmmo--;
+        this.lastFired = now;
+        return true;
+      }
+
+      reload() {
+        if (this.isReloading || this.currentAmmo === this.maxAmmo) return;
+        this.isReloading = true;
+        setTimeout(() => {
+          this.currentAmmo = this.maxAmmo;
+          this.isReloading = false;
+        }, this.reloadTime);
+      }
+    }
+
+    // ==========================================
+    // 5. LEVEL & STATE MANAGER
+    // ==========================================
+    class LevelManager {
+      static loadState() {
+        const saved = localStorage.getItem('raycaster_player_state');
+        if (saved) return JSON.parse(saved);
+        return { health: 100, activeWeaponIndex: 0 };
+      }
+
+      static saveState(player) {
+        const state = {
+          health: player.health,
+          activeWeaponIndex: player.activeWeaponIndex
+        };
+        localStorage.setItem('raycaster_player_state', JSON.stringify(state));
+      }
+
+      static changeLevel(targetUrl, player) {
+        this.saveState(player);
+        window.location.href = targetUrl;
+      }
+    }
+
+    // ==========================================
+    // 6. PLAYER SYSTEM
+    // ==========================================
+    class Player {
+      constructor(x, y, angle) {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        this.fov = Math.PI / 3;
+        this.moveSpeed = 150;
+        this.rotSpeed = 2.0;
+        this.radius = 16;
+
+        const state = LevelManager.loadState();
+        this.health = state.health;
+
+        this.weapons = [
+          new Weapon('Pistol', 12, 25, 400, 1200, '#ff0'),
+          new Weapon('Shotgun', 6, 80, 900, 2000, '#f80'),
+          new Weapon('Machine Gun', 30, 15, 100, 1500, '#0f0'),
+          new Weapon('Plasma Rifle', 20, 40, 250, 1800, '#0ff'),
+          new Weapon('Rocket Launcher', 4, 150, 1200, 2500, '#f0f')
+        ];
+        this.activeWeaponIndex = state.activeWeaponIndex || 0;
+      }
+
+      get activeWeapon() { return this.weapons[this.activeWeaponIndex]; }
+
+      update(dt, input, map, monsters) {
+        let currentRotSpeed = this.rotSpeed * dt;
+        if (input.isPressed('ShiftLeft') || input.isPressed('ShiftRight')) {
+          currentRotSpeed *= 0.5;
+        }
+
+        if (input.isPressed('ArrowLeft')) this.angle -= currentRotSpeed;
+        if (input.isPressed('ArrowRight')) this.angle += currentRotSpeed;
+
+        const dx = Math.cos(this.angle);
+        const dy = Math.sin(this.angle);
+
+        let moveX = 0;
+        let moveY = 0;
+
+        if (input.isPressed('KeyW')) { moveX += dx; moveY += dy; }
+        if (input.isPressed('KeyS')) { moveX -= dx; moveY -= dy; }
+        if (input.isPressed('KeyA')) { moveX += dy; moveY -= dx; }
+        if (input.isPressed('KeyD')) { moveX -= dy; moveY += dx; }
+
+        const len = Math.hypot(moveX, moveY);
+        if (len > 0) {
+          const step = this.moveSpeed * dt;
+          const nextX = this.x + (moveX / len) * step;
+          const nextY = this.y + (moveY / len) * step;
+
+          if (!map.isSolid(nextX, this.y)) this.x = nextX;
+          if (!map.isSolid(this.x, nextY)) this.y = nextY;
+
+          if (map.getTile(this.x, this.y) === 9) {
+            LevelManager.changeLevel('level3.html', this);
+          }
+        }
+
+        for (let i = 1; i <= 5; i++) {
+          if (input.isPressed(`Digit${i}`)) this.activeWeaponIndex = i - 1;
+        }
+
+        if (input.isPressed('KeyR')) this.activeWeapon.reload();
+        if (input.isPressed('Space')) this.shoot(map, monsters);
+      }
+
+      // Infinite Vertical Hitbox Hitscan Protocol implementation
+      shoot(map, monsters) {
+        const now = performance.now();
+        if (!this.activeWeapon.shoot(now)) return;
+
+        let closestMonster = null;
+        let minDistance = Infinity;
+
+        monsters.forEach(monster => {
+          if (!monster.isAlive) return;
+
+          const dx = monster.x - this.x;
+          const dy = monster.y - this.y;
+          const rayDistance = dx * Math.cos(this.angle) + dy * Math.sin(this.angle);
+
+          if (rayDistance > 0) {
+            const perpDist = Math.abs(-dx * Math.sin(this.angle) + dy * Math.cos(this.angle));
+
+            if (perpDist < monster.radius && rayDistance < minDistance) {
+              if (!map.isRayBlockedByWall(this.x, this.y, monster.x, monster.y)) {
+                minDistance = rayDistance;
+                closestMonster = monster;
+              }
+            }
+          }
+        });
+
+        if (closestMonster) {
+          closestMonster.takeDamage(this.activeWeapon.damage);
+        }
+      }
+    }
+
+    // ==========================================
+    // 7. ENGINE CORE & RAYCASTING RENDERER
+    // ==========================================
+    class Engine {
+      constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.input = new InputHandler();
+        this.map = new MapManager();
+        this.player = new Player(120, 120, 0);
+
+        // Spawn monsters in Level 2
+        this.monsters = [
+          new Monster(300, 200, '#e74c3c', 50),
+          new Monster(500, 150, '#e74c3c', 50),
+          new Monster(700, 450, '#9b59b6', 100),
+          new Monster(200, 550, '#e74c3c', 50)
+        ];
+
+        this.depthBuffer = new Array(this.canvas.width).fill(Infinity);
+        this.lastTime = 0;
+        this.wallColors = { 1: '#888', 2: '#a44', 3: '#44a', 9: '#4a4' };
+
+        this.loop = this.loop.bind(this);
+      }
+
+      start() {
+        requestAnimationFrame(this.loop);
+      }
+
+      loop(timestamp) {
+        const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+        this.lastTime = timestamp;
+
+        this.update(dt);
+        this.render();
+
+        requestAnimationFrame(this.loop);
+      }
+
+      update(dt) {
+        this.player.update(dt, this.input, this.map, this.monsters);
+        this.monsters.forEach(monster => monster.update(dt, this.player, this.map));
+        this.updateHUD();
+      }
+
+      render() {
+        const ctx = this.ctx;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+
+        // 1. Clear background (Ceiling & Floor)
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, 0, width, height / 2);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(0, height / 2, width, height / 2);
+
+        // 2. Raycast Walls
+        const numRays = width;
+        const halfFov = this.player.fov / 2;
+
+        for (let i = 0; i < numRays; i++) {
+          const rayAngle = (this.player.angle - halfFov) + (i / numRays) * this.player.fov;
+          const cos = Math.cos(rayAngle);
+          const sin = Math.sin(rayAngle);
+
+          let distance = 0;
+          let hitTile = 0;
+
+          while (distance < 800) {
+            distance += 2;
+            const checkX = this.player.x + cos * distance;
+            const checkY = this.player.y + sin * distance;
+
+            const tile = this.map.getTile(checkX, checkY);
+            if (tile > 0) {
+              hitTile = tile;
+              break;
+            }
+          }
+
+          const correctedDistance = distance * Math.cos(rayAngle - this.player.angle);
+          this.depthBuffer[i] = correctedDistance;
+
+          if (hitTile > 0) {
+            const projPlaneDist = (width / 2) / Math.tan(halfFov);
+            const wallHeight = (this.map.tileSize / correctedDistance) * projPlaneDist;
+
+            const drawTop = Math.max(0, (height / 2) - (wallHeight / 2));
+            const drawBottom = Math.min(height, (height / 2) + (wallHeight / 2));
+
+            ctx.fillStyle = this.wallColors[hitTile] || '#fff';
+            ctx.fillRect(i, drawTop, 1, drawBottom - drawTop);
+          }
+        }
+
+        // 3. Render Monster Sprites with Depth Check
+        this.renderMonsters(ctx, width, height, halfFov);
+
+        // 4. Render Overlay Elements (Weapon & Map)
+        this.renderWeaponSprite(ctx, width, height);
+        this.renderMinimap(ctx);
+      }
+
+      renderMonsters(ctx, width, height, halfFov) {
+        // Sort monsters by distance (back to front)
+        const sorted = [...this.monsters]
+          .filter(m => m.isAlive)
+          .map(m => {
+            const dx = m.x - this.player.x;
+            const dy = m.y - this.player.y;
+            return {
+              monster: m,
+              dist: Math.hypot(dx, dy),
+              angle: Math.atan2(dy, dx) - this.player.angle
+            };
+          })
+          .sort((a, b) => b.dist - a.dist);
+
+        sorted.forEach(({ monster, dist, angle }) => {
+          // Normalize angle to [-PI, PI]
+          let normAngle = angle;
+          while (normAngle < -Math.PI) normAngle += Math.PI * 2;
+          while (normAngle > Math.PI) normAngle -= Math.PI * 2;
+
+          if (Math.abs(normAngle) < halfFov + 0.2 && dist > 10) {
+            const projPlaneDist = (width / 2) / Math.tan(halfFov);
+            const screenX = (width / 2) + Math.tan(normAngle) * projPlaneDist;
+            const monsterSize = (this.map.tileSize / dist) * projPlaneDist;
+
+            const drawX = Math.floor(screenX - monsterSize / 2);
+            const drawY = Math.floor((height / 2) - monsterSize / 2);
+
+            // Draw vertical slices checked against depth buffer
+            for (let x = Math.max(0, drawX); x < Math.min(width, drawX + monsterSize); x++) {
+              if (dist < this.depthBuffer[x]) {
+                ctx.fillStyle = monster.color;
+                ctx.fillRect(x, drawY, 1, monsterSize);
+              }
+            }
+          }
+        });
+      }
+
+      renderWeaponSprite(ctx, width, height) {
+        const weapon = this.player.activeWeapon;
+        ctx.fillStyle = weapon.color;
+        ctx.fillRect(width / 2 - 15, height - 40, 30, 40);
+      }
+
+      // Render 2D Overlay Map
+      renderMinimap(ctx) {
+        const scale = 0.15;
+        const offsetX = 8;
+        const offsetY = 8;
+
+        // Draw Map Grid
+        for (let y = 0; y < this.map.height; y++) {
+          for (let x = 0; x < this.map.width; x++) {
+            const tile = this.map.grid[y][x];
+            if (tile > 0) {
+              ctx.fillStyle = this.wallColors[tile] || '#888';
+              ctx.fillRect(
+                offsetX + x * this.map.tileSize * scale,
+                offsetY + y * this.map.tileSize * scale,
+                this.map.tileSize * scale,
+                this.map.tileSize * scale
+              );
+            }
+          }
+        }
+
+        // Draw Monsters on Map
+        this.monsters.forEach(m => {
+          if (!m.isAlive) return;
+          ctx.fillStyle = m.color;
+          ctx.beginPath();
+          ctx.arc(
+            offsetX + m.x * scale,
+            offsetY + m.y * scale,
+            m.radius * scale,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        });
+
+        // Draw Player on Map
+        ctx.fillStyle = '#0f0';
+        ctx.beginPath();
+        ctx.arc(
+          offsetX + this.player.x * scale,
+          offsetY + this.player.y * scale,
+          this.player.radius * scale,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        // Draw Player Direction Vector
+        ctx.strokeStyle = '#0f0';
+        ctx.beginPath();
+        ctx.moveTo(offsetX + this.player.x * scale, offsetY + this.player.y * scale);
+        ctx.lineTo(
+          offsetX + (this.player.x + Math.cos(this.player.angle) * 20) * scale,
+          offsetY + (this.player.y + Math.sin(this.player.angle) * 20) * scale
+        );
+        ctx.stroke();
+      }
+
+      updateHUD() {
+        const weapon = this.player.activeWeapon;
+        document.getElementById('hud-health').innerText = this.player.health;
+        document.getElementById('hud-weapon').innerText = weapon.name;
+        document.getElementById('hud-ammo').innerText = `${weapon.currentAmmo}/${weapon.maxAmmo}`;
+        document.getElementById('hud-status').innerText = weapon.isReloading ? 'RELOADING...' : 'READY';
+      }
+    }
+
+    // Start Engine
+    window.onload = () => {
+      const engine = new Engine();
+      engine.start();
+    };
+  </script>
+</body>
+</html>

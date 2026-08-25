@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Projects Hub</title>
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <link rel="icon" href="icons8-google-web-search-64.png">
+
+  <style>
+    /* =========================================================
+       CSS VARIABLES & THEMING
+       ========================================================= */
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: #161b22;
+      --border-color: #30363d;
+      --text-main: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent-color: #58a6ff;
+      --accent-hover: #1f6feb;
+      --tag-bg: #21262d;
+      --header-bg: #161b22;
+    }
+
+    [data-theme="light"] {
+      --bg-color: #f6f8fa;
+      --card-bg: #ffffff;
+      --border-color: #d0d7de;
+      --text-main: #24292f;
+      --text-muted: #57606a;
+      --accent-color: #0969da;
+      --accent-hover: #0349b4;
+      --tag-bg: #eff1f3;
+      --header-bg: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding-bottom: 60px;
+    }
+
+    header {
+      background-color: var(--header-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 2rem 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .title-area h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .title-area p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 0.2rem;
+    }
+
+    .theme-toggle-btn {
+      background: var(--tag-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--text-muted);
+    }
+
+    .controls-container {
+      max-width: 1100px;
+      margin: 1.5rem auto;
+      padding: 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .search-bar {
+      position: relative;
+      width: 100%;
+    }
+
+    .search-bar i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .search-bar input:focus {
+      border-color: var(--accent-color);
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      background: var(--tag-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tab-btn.active, .tab-btn:hover {
+      background: var(--accent-color);
+      color: #ffffff;
+      border-color: var(--accent-color);
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    .project-section {
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--card-bg);
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      background: var(--card-bg);
+    }
+
+    .section-header:hover {
+      background: var(--tag-bg);
+    }
+
+    .section-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title-group i.folder-icon {
+      color: var(--accent-color);
+    }
+
+    .section-title-group h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .folder-path {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: var(--bg-color);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+
+    .accordion-icon {
+      transition: transform 0.2s ease;
+      color: var(--text-muted);
+    }
+
+    .project-section.collapsed .accordion-icon {
+      transform: rotate(-90deg);
+    }
+
+    .project-section.collapsed .section-body {
+      display: none;
+    }
+
+    .section-body {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .section-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .project-card {
+      background: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .project-card:hover {
+      border-color: var(--accent-color);
+    }
+
+    .project-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .project-card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+
+    .tag {
+      background: var(--tag-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .path-tooltip {
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 60%;
+    }
+
+    .btn-link {
+      color: #ffffff;
+      background: var(--accent-color);
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .btn-link:hover {
+      background: var(--accent-hover);
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .header-container {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .folder-path {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="title-area">
+        <h1 id="site-title">GitHub Project Hub</h1>
+        <p id="site-subtitle">Directory & Portfolio Organizer</p>
+      </div>
+      <button class="theme-toggle-btn" id="theme-toggle" aria-label="Toggle Theme">
+        <i class="fa-solid fa-moon"></i>
+        <span id="theme-text">Dark Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="controls-container">
+    <div class="search-bar">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="search-input" placeholder="Search projects by name, description, or tag..." />
+    </div>
+
+    <div class="filter-tabs" id="filter-tabs">
+      <button class="tab-btn active" data-category="all">All Projects</button>
+    </div>
+  </div>
+
+  <main id="portfolio-container">
+    <!-- Dynamic content renders here -->
+  </main>
+
+  <div class="no-results" id="no-results">
+    <p><i class="fa-solid fa-folder-open fa-2x"></i></p>
+    <p style="margin-top: 0.5rem;">No matching projects found.</p>
+  </div>
+
+  <script>
+    /* =========================================================================
+       HUMAN EDIT ZONE - PORTFOLIO CONFIGURATION
+       ========================================================================= */
+    const PORTFOLIO_CONFIG = {
+      // EDIT: Update site title and subtitle
+      title: "Building with AI Directory",
+      subtitle: "Nested Portfolio & Project Hub",
+
+      sections: [
+        {
+          id: "3d-projects",                  // EDIT: Unique Section ID
+          title: "3D PROJECTS",               // EDIT: Section Display Name
+          folderPath: "3D_PROJECTS",          // EDIT: Tier 1 Folder Name
+          description: "WebGL and Three.js interactive environments",
+          projects: [
+            {
+              name: "Solar System",                     // EDIT: Project Title
+              projectFolder: "SOLARSYSTEM_PROJECT",     // EDIT: Tier 2 Subfolder
+              file: "solar_system.html",                // EDIT: Tier 3 Target File
+              description: "Interactive 3D simulation built with Three.js.",
+              tags: ["Three.js", "WebGL", "Space"]     // EDIT: Search tags
+            },
+            {
+              name: "Low Poly Island",
+              projectFolder: "ISLAND_PROJECT",
+              file: "island.html",
+              description: "Stylized 3D low poly environment render.",
+              tags: ["Blender", "Canvas", "3D"]
+            }
+          ]
+        },
+        {
+          id: "2d-projects",
+          title: "2D PROJECTS",
+          folderPath: "2D_PROJECTS",
+          description: "HTML5 Canvas games, UI graphics, and digital animation",
+          projects: [
+            {
+              name: "Pixel Platformer",
+              projectFolder: "PLATFORMER_GAME",
+              file: "game.html",
+              description: "Custom 2D retro platforming engine.",
+              tags: ["2D", "JavaScript", "Game"]
+            }
+          ]
+        },
+        {
+          id: "utilities",
+          title: "UTILITIES & TOOLS",
+          folderPath: "UTILITIES",
+          description: "Productivity web apps and lightweight dev tools",
+          projects: [
+            {
+              name: "Color Palette Generator",
+              projectFolder: "PALETTE_TOOL",
+              file: "palette.html",
+              description: "Extract color swatches directly from images.",
+              tags: ["Tool", "UI", "Design"]
+            }
+          ]
+        }
+      ]
+    };
+
+    /* =========================================================================
+       CORE RENDER LOGIC - DO NOT EDIT BELOW UNLESS MODIFYING FUNCTIONALITY
+       ========================================================================= */
+    let activeCategory = 'all';
+
+    function initApp() {
+      document.getElementById('site-title').textContent = PORTFOLIO_CONFIG.title;
+      document.getElementById('site-subtitle').textContent = PORTFOLIO_CONFIG.subtitle;
+
+      renderFilterTabs();
+      renderPortfolio();
+      setupEventListeners();
+      setupThemeToggle();
+    }
+
+    function renderFilterTabs() {
+      const tabsContainer = document.getElementById('filter-tabs');
+      PORTFOLIO_CONFIG.sections.forEach(sec => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn';
+        btn.dataset.category = sec.id;
+        btn.textContent = sec.title;
+        tabsContainer.appendChild(btn);
+      });
+    }
+
+    function renderPortfolio() {
+      const container = document.getElementById('portfolio-container');
+      container.innerHTML = '';
+
+      PORTFOLIO_CONFIG.sections.forEach(sec => {
+        const sectionEl = document.createElement('section');
+        sectionEl.className = 'project-section';
+        sectionEl.dataset.id = sec.id;
+
+        const relativeCategoryPath = `./${sec.folderPath}/`;
+
+        let cardsHTML = sec.projects.map(proj => {
+          // Construct 3-Tier Nested Path: ./CategoryFolder/ProjectFolder/TargetFile.html
+          const relativePath = `./${sec.folderPath}/${proj.projectFolder}/${proj.file}`;
+          const tagsHTML = proj.tags.map(t => `<span class="tag">${t}</span>`).join('');
+          
+          return `
+            <div class="project-card" data-search="${(proj.name + ' ' + proj.description + ' ' + proj.tags.join(' ')).toLowerCase()}">
+              <div>
+                <h3>${proj.name}</h3>
+                <p>${proj.description}</p>
+                <div class="tags">${tagsHTML}</div>
+              </div>
+              <div class="card-footer">
+                <span class="path-tooltip" title="${relativePath}">${relativePath}</span>
+                <a href="${relativePath}" class="btn-link" target="_blank">Open Project <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        sectionEl.innerHTML = `
+          <div class="section-header">
+            <div class="section-title-group">
+              <i class="fa-solid fa-folder-closed folder-icon"></i>
+              <h2>${sec.title}</h2>
+              <span class="folder-path">${relativeCategoryPath}</span>
+            </div>
+            <i class="fa-solid fa-chevron-down accordion-icon"></i>
+          </div>
+          <div class="section-body">
+            <p class="section-desc">${sec.description}</p>
+            <div class="project-grid">
+              ${cardsHTML}
+            </div>
+          </div>
+        `;
+
+        container.appendChild(sectionEl);
+      });
+    }
+
+    function setupEventListeners() {
+      document.getElementById('portfolio-container').addEventListener('click', (e) => {
+        const header = e.target.closest('.section-header');
+        if (header) {
+          const section = header.parentElement;
+          section.classList.toggle('collapsed');
+          
+          const icon = header.querySelector('.folder-icon');
+          if (section.classList.contains('collapsed')) {
+            icon.className = 'fa-solid fa-folder folder-icon';
+          } else {
+            icon.className = 'fa-solid fa-folder-open folder-icon';
+          }
+        }
+      });
+
+      document.getElementById('filter-tabs').addEventListener('click', (e) => {
+        if (e.target.classList.contains('tab-btn')) {
+          document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+          e.target.classList.add('active');
+          activeCategory = e.target.dataset.category;
+          filterProjects();
+        }
+      });
+
+      document.getElementById('search-input').addEventListener('input', filterProjects);
+    }
+
+    function filterProjects() {
+      const query = document.getElementById('search-input').value.toLowerCase().trim();
+      const sections = document.querySelectorAll('.project-section');
+      let totalVisibleCards = 0;
+
+      sections.forEach(section => {
+        const secId = section.dataset.id;
+        const matchesCategory = (activeCategory === 'all' || activeCategory === secId);
+        
+        const cards = section.querySelectorAll('.project-card');
+        let visibleCardsInSection = 0;
+
+        cards.forEach(card => {
+          const searchData = card.dataset.search;
+          const matchesSearch = searchData.includes(query);
+
+          if (matchesCategory && matchesSearch) {
+            card.style.display = 'flex';
+            visibleCardsInSection++;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        if (visibleCardsInSection > 0) {
+          section.style.display = 'block';
+          totalVisibleCards += visibleCardsInSection;
+        } else {
+          section.style.display = 'none';
+        }
+      });
+
+      const noResults = document.getElementById('no-results');
+      noResults.style.display = (totalVisibleCards === 0) ? 'block' : 'none';
+    }
+
+    function setupThemeToggle() {
+      const toggleBtn = document.getElementById('theme-toggle');
+      const themeText = document.getElementById('theme-text');
+      const icon = toggleBtn.querySelector('i');
+
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeUI(savedTheme);
+
+      toggleBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateThemeUI(newTheme);
+      });
+
+      function updateThemeUI(theme) {
+        if (theme === 'light') {
+          icon.className = 'fa-solid fa-sun';
+          themeText.textContent = 'Light Mode';
+        } else {
+          icon.className = 'fa-solid fa-moon';
+          themeText.textContent = 'Dark Mode';
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

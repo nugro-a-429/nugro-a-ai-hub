@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Palette Generator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: var(--text-muted);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      background-color: var(--card-bg);
+      padding: 3rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      background-color: #26334d;
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      background-color: var(--card-bg);
+      padding: 1rem;
+      border-radius: 8px;
+    }
+
+    .controls label {
+      font-weight: 600;
+    }
+
+    .controls input[type="range"] {
+      cursor: pointer;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+      .content-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .img-preview {
+      max-width: 100%;
+      max-height: 350px;
+      border-radius: 8px;
+      object-fit: contain;
+      display: none;
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      height: 140px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .swatch:hover {
+      transform: translateY(-4px);
+    }
+
+    .swatch-color {
+      flex: 1;
+    }
+
+    .swatch-info {
+      background-color: #0f172a;
+      padding: 0.5rem;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      background-color: var(--accent);
+      color: #0f172a;
+      padding: 0.75rem 1.5rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(100%);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    canvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Color Palette Extractor</h1>
+    <p>Upload an image to automatically extract its core color scheme.</p>
+  </header>
+
+  <div class="container">
+    <div class="drop-zone" id="dropZone">
+      <p>Drag & drop an image here, or <strong>click to browse</strong></p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="controls">
+      <label for="colorCount">Swatches: <span id="countVal">5</span></label>
+      <input type="range" id="colorCount" min="2" max="10" value="5">
+    </div>
+
+    <div class="content-grid">
+      <div class="card">
+        <strong style="align-self: flex-start;">Source Image</strong>
+        <img id="imagePreview" class="img-preview" alt="Preview">
+      </div>
+      <div class="card">
+        <strong style="align-self: flex-start;">Extracted Palette</strong>
+        <div class="palette" id="paletteContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied to clipboard!</div>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const imagePreview = document.getElementById('imagePreview');
+    const paletteContainer = document.getElementById('paletteContainer');
+    const colorCountInput = document.getElementById('colorCount');
+    const countVal = document.getElementById('countVal');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const toast = document.getElementById('toast');
+
+    let currentImage = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    colorCountInput.addEventListener('input', (e) => {
+      countVal.textContent = e.target.value;
+      if (currentImage) {
+        extractPalette();
+      }
+    });
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          currentImage = img;
+          imagePreview.src = e.target.result;
+          imagePreview.style.display = 'block';
+          extractPalette();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function extractPalette() {
+      const k = parseInt(colorCountInput.value, 10);
+      
+      // Resize for faster processing
+      const maxDim = 150;
+      let width = currentImage.width;
+      let height = currentImage.height;
+
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(currentImage, 0, 0, width, height);
+
+      const imageData = ctx.getImageData(0, 0, width, height).data;
+      const pixels = [];
+
+      for (let i = 0; i < imageData.length; i += 4) {
+        // Ignore fully transparent pixels
+        if (imageData[i + 3] < 128) continue;
+        pixels.push([imageData[i], imageData[i + 1], imageData[i + 2]]);
+      }
+
+      if (pixels.length === 0) return;
+
+      const colors = kMeans(pixels, k);
+      renderPalette(colors);
+    }
+
+    // Simplified K-Means Clustering Algorithm
+    function kMeans(pixels, k, maxIter = 10) {
+      let centroids = [];
+      const step = Math.floor(pixels.length / k);
+      for (let i = 0; i < k; i++) {
+        centroids.push(pixels[i * step]);
+      }
+
+      for (let iter = 0; iter < maxIter; iter++) {
+        const clusters = Array.from({ length: k }, () => []);
+
+        for (let i = 0; i < pixels.length; i++) {
+          const pixel = pixels[i];
+          let minDist = Infinity;
+          let clusterIdx = 0;
+
+          for (let j = 0; j < k; j++) {
+            const dist = colorDistance(pixel, centroids[j]);
+            if (dist < minDist) {
+              minDist = dist;
+              clusterIdx = j;
+            }
+          }
+          clusters[clusterIdx].push(pixel);
+        }
+
+        let moved = false;
+        for (let j = 0; j < k; j++) {
+          if (clusters[j].length === 0) continue;
+          const newCentroid = [0, 0, 0];
+          for (let p = 0; p < clusters[j].length; p++) {
+            newCentroid[0] += clusters[j][p][0];
+            newCentroid[1] += clusters[j][p][1];
+            newCentroid[2] += clusters[j][p][2];
+          }
+          newCentroid[0] = Math.round(newCentroid[0] / clusters[j].length);
+          newCentroid[1] = Math.round(newCentroid[1] / clusters[j].length);
+          newCentroid[2] = Math.round(newCentroid[2] / clusters[j].length);
+
+          if (colorDistance(newCentroid, centroids[j]) > 1) {
+            moved = true;
+          }
+          centroids[j] = newCentroid;
+        }
+
+        if (!moved) break;
+      }
+
+      return centroids;
+    }
+
+    function colorDistance(c1, c2) {
+      return Math.sqrt(
+        (c1[0] - c2[0]) ** 2 +
+        (c1[1] - c2[1]) ** 2 +
+        (c1[2] - c2[2]) ** 2
+      );
+    }
+
+    function rgbToHex(r, g, b) {
+      return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+
+    function renderPalette(colors) {
+      paletteContainer.innerHTML = '';
+      colors.forEach(color => {
+        const hex = rgbToHex(color[0], color[1], color[2]);
+        const swatch = document.createElement('div');
+        swatch.className = 'swatch';
+        swatch.innerHTML = `
+          <div class="swatch-color" style="background-color: ${hex};"></div>
+          <div class="swatch-info">${hex.toUpperCase()}</div>
+        `;
+        swatch.addEventListener('click', () => copyToClipboard(hex.toUpperCase()));
+        paletteContainer.appendChild(swatch);
+      });
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast.textContent = `Copied ${text} to clipboard!`;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    }
+  </script>
+</body>
+</html>

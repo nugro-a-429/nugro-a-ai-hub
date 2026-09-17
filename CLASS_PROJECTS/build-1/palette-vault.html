@@ -16,687 +16,142 @@
       --accent-hover: #4f46e5;
       --accent-light: rgba(99, 102, 241, 0.15);
       --danger: #ef4444;
+      --danger-hover: #dc2626;
       --radius: 12px;
       --radius-sm: 8px;
       --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
       --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: var(--bg-primary); color: var(--text-main); font-family: var(--font); line-height: 1.5; min-height: 100vh; display: flex; flex-direction: column; }
+    header { background-color: var(--bg-surface); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+    .header-container { max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .logo-group { display: flex; align-items: center; gap: 0.75rem; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4); }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; background: linear-gradient(to right, #ffffff, #94a3b8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-tabs { display: flex; background-color: var(--bg-primary); padding: 0.25rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+    .tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 0.5rem 1.25rem; font-size: 0.9rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.5rem; }
+    .tab-btn.active { background-color: var(--accent); color: #ffffff; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4); }
+    .tab-btn:hover:not(.active) { color: var(--text-main); background-color: rgba(255, 255, 255, 0.05); }
+    main { max-width: 1200px; width: 100%; margin: 0 auto; padding: 2rem 1.5rem; flex: 1; }
+    .view-panel { display: none; animation: fadeIn 0.3s ease; }
+    .view-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .controls-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 2rem; display: flex; flex-direction: column; gap: 1rem; box-shadow: var(--shadow); }
+    .controls-row-top { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .search-box { flex: 1; min-width: 240px; position: relative; }
+    .search-input { width: 100%; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.65rem 1rem; color: var(--text-main); font-size: 0.95rem; transition: border-color 0.2s; }
+    .search-input:focus { outline: none; border-color: var(--accent); }
+    .sort-box { display: flex; align-items: center; gap: 0.5rem; }
+    .select-input { background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.65rem 1rem; color: var(--text-main); font-size: 0.9rem; cursor: pointer; outline: none; }
+    .select-input:focus { border-color: var(--accent); }
+    .category-pills { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.25rem; }
+    .pill-btn { background-color: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.4rem 0.85rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .pill-btn:hover { border-color: var(--text-muted); color: var(--text-main); }
+    .pill-btn.active { background-color: var(--accent-light); border-color: var(--accent); color: #a5b4fc; }
+    .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .palette-card { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); transition: transform 0.2s ease, border-color 0.2s ease; }
+    .palette-card:hover { transform: translateY(-4px); border-color: #475569; }
+    .swatch-container { height: 140px; display: flex; width: 100%; cursor: pointer; position: relative; }
+    .swatch-bar { height: 100%; flex: 1; transition: flex 0.2s ease; position: relative; }
+    .swatch-bar:hover { flex: 1.8; }
+    .swatch-bar .color-code { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.65); color: #fff; font-size: 0.7rem; font-family: monospace; padding: 2px 4px; border-radius: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+    .swatch-bar:hover .color-code { opacity: 1; }
+    .card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; flex: 1; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+    .card-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); line-height: 1.3; }
+    .card-category { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.2rem 0.5rem; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-muted); white-space: nowrap; }
+    .card-meta { font-size: 0.8rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; }
+    .card-date { font-size: 0.75rem; opacity: 0.85; }
+    .card-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: auto; }
+    .tag-item { font-size: 0.75rem; color: var(--text-muted); background-color: rgba(255, 255, 255, 0.03); padding: 0.1rem 0.4rem; border-radius: 4px; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.05); margin-top: 0.25rem; gap: 0.5rem; flex-wrap: wrap; }
+    .action-group { display: flex; gap: 0.4rem; align-items: center; }
+    .like-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: all 0.2s; }
+    .like-btn:hover { border-color: #f43f5e; color: #f43f5e; background-color: rgba(244, 63, 94, 0.1); }
+    .like-btn.liked { background-color: rgba(244, 63, 94, 0.15); border-color: #f43f5e; color: #f43f5e; }
+    .like-btn svg { width: 14px; height: 14px; fill: currentColor; }
+    .empty-state { text-align: center; padding: 4rem 2rem; background-color: var(--bg-surface); border: 1px dashed var(--border-color); border-radius: var(--radius); grid-column: 1 / -1; }
+
+    /* Form Styles */
+    .form-container { max-width: 650px; margin: 0 auto; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow); }
+    .form-header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+    .form-group { margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    label { font-size: 0.85rem; font-weight: 600; color: var(--text-main); display: flex; justify-content: space-between; }
+    .char-limit { font-weight: normal; color: var(--text-muted); font-size: 0.75rem; }
+    input[type="text"], textarea, select { background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.75rem 1rem; color: var(--text-main); font-size: 0.95rem; width: 100%; outline: none; transition: border-color 0.2s; font-family: var(--font); }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    .colors-section { background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .colors-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .colors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.75rem; }
+    .color-picker-item { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; position: relative; }
+    .color-picker-wrapper { width: 100%; height: 50px; border-radius: 6px; overflow: hidden; border: 2px solid var(--border-color); position: relative; cursor: pointer; }
+    .color-picker-wrapper input[type="color"] { position: absolute; top: -10px; left: -10px; width: 200%; height: 200%; cursor: pointer; border: none; }
+    .color-hex-text { font-size: 0.75rem; font-family: monospace; color: var(--text-muted); text-transform: uppercase; }
+    .remove-color-btn { position: absolute; top: -6px; right: -6px; background-color: var(--danger); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .add-color-btn { background-color: transparent; border: 1px dashed var(--border-color); color: var(--accent); padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .submit-btn { width: 100%; background-color: var(--accent); color: white; border: none; border-radius: var(--radius-sm); padding: 0.85rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+    .submit-btn:hover { background-color: var(--accent-hover); }
+
+    /* Modals */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 200; padding: 1rem; }
+    .modal-overlay.active { display: flex; }
+    .modal-content { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius); width: 100%; max-width: 650px; padding: 1.5rem; box-shadow: var(--shadow); max-height: 85vh; display: flex; flex-direction: column; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; }
+    .close-modal { background: none; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; }
+    .comments-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; padding-right: 0.5rem; }
+    
+    /* Threaded Comments & Action Controls */
+    .comment-item { background-color: var(--bg-primary); border: 1px solid var(--border-color); padding: 0.85rem; border-radius: var(--radius-sm); font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .comment-thread { border-left: 2px solid var(--border-color); padding-left: 0.75rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem; }
+    .comment-author { font-weight: 600; color: var(--accent); }
+    .comment-actions { display: flex; gap: 0.35rem; align-items: center; }
+
+    /* Action Pills */
+    .action-pill { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.2rem 0.55rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.2rem; }
+    .action-pill:hover { border-color: var(--accent); color: var(--text-main); background-color: var(--accent-light); }
+    .action-pill.danger:hover { border-color: var(--danger); color: var(--danger); background-color: rgba(239, 68, 68, 0.1); }
+
+    /* Inline Forms */
+    .reply-form-container, .edit-form-container { margin-top: 0.6rem; padding: 0.75rem; background: var(--bg-surface); border-radius: var(--radius-sm); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* Shared Confirm Modal */
+    .confirm-modal-content { background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius); width: 100%; max-width: 400px; padding: 1.5rem; text-align: center; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 1rem; }
+    .confirm-actions { display: flex; gap: 0.75rem; justify-content: center; }
+    .btn-danger { background-color: var(--danger); color: white; border: none; border-radius: var(--radius-sm); padding: 0.5rem 1.25rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+    .btn-danger:hover { background-color: var(--danger-hover); }
 
-    body {
-      background-color: var(--bg-primary);
-      color: var(--text-main);
-      font-family: var(--font);
-      line-height: 1.5;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Header & Navigation */
-    header {
-      background-color: var(--bg-surface);
-      border-bottom: 1px solid var(--border-color);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      backdrop-filter: blur(8px);
-    }
-
-    .header-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1rem 1.5rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .logo-group {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .logo-icon {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      background: linear-gradient(to right, #ffffff, #94a3b8);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .nav-tabs {
-      display: flex;
-      background-color: var(--bg-primary);
-      padding: 0.25rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-color);
-    }
-
-    .tab-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 0.5rem 1.25rem;
-      font-size: 0.9rem;
-      font-weight: 600;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .tab-btn.active {
-      background-color: var(--accent);
-      color: #ffffff;
-      box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
-    }
-
-    .tab-btn:hover:not(.active) {
-      color: var(--text-main);
-      background-color: rgba(255, 255, 255, 0.05);
-    }
-
-    /* Main Container */
-    main {
-      max-width: 1200px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-      flex: 1;
-    }
-
-    .view-panel {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .view-panel.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Controls Bar (Explore View) */
-    .controls-card {
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      margin-bottom: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      box-shadow: var(--shadow);
-    }
-
-    .controls-row-top {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .search-box {
-      flex: 1;
-      min-width: 240px;
-      position: relative;
-    }
-
-    .search-input {
-      width: 100%;
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.65rem 1rem 0.65rem 2.5rem;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      transition: border-color 0.2s;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 0.85rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      pointer-events: none;
-    }
-
-    .sort-box {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .select-input {
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.65rem 1rem;
-      color: var(--text-main);
-      font-size: 0.9rem;
-      cursor: pointer;
-      outline: none;
-    }
-
-    .select-input:focus {
-      border-color: var(--accent);
-    }
-
-    .category-pills {
-      display: flex;
-      gap: 0.5rem;
-      overflow-x: auto;
-      padding-bottom: 0.25rem;
-      scrollbar-width: thin;
-    }
-
-    .pill-btn {
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      color: var(--text-muted);
-      padding: 0.4rem 0.85rem;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
-    }
-
-    .pill-btn:hover {
-      border-color: var(--text-muted);
-      color: var(--text-main);
-    }
-
-    .pill-btn.active {
-      background-color: var(--accent-light);
-      border-color: var(--accent);
-      color: #a5b4fc;
-    }
-
-    /* Palette Grid */
-    .palette-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1.5rem;
-    }
-
-    /* Palette Card */
-    .palette-card {
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow);
-      transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-
-    .palette-card:hover {
-      transform: translateY(-4px);
-      border-color: #475569;
-    }
-
-    .swatch-container {
-      height: 140px;
-      display: flex;
-      width: 100%;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .swatch-bar {
-      height: 100%;
-      flex: 1;
-      transition: flex 0.2s ease;
-      position: relative;
-    }
-
-    .swatch-bar:hover {
-      flex: 1.8;
-    }
-
-    .swatch-bar .color-code {
-      position: absolute;
-      bottom: 8px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.65);
-      color: #fff;
-      font-size: 0.7rem;
-      font-family: monospace;
-      padding: 2px 4px;
-      border-radius: 4px;
-      opacity: 0;
-      transition: opacity 0.2s;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-
-    .swatch-bar:hover .color-code {
-      opacity: 1;
-    }
-
-    .card-body {
-      padding: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      flex: 1;
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 0.5rem;
-    }
-
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text-main);
-      line-height: 1.3;
-    }
-
-    .card-category {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 0.2rem 0.5rem;
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-
-    .card-meta {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .card-date {
-      font-size: 0.75rem;
-      opacity: 0.85;
-    }
-
-    .card-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-      margin-top: auto;
-    }
-
-    .tag-item {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      background-color: rgba(255, 255, 255, 0.03);
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-    }
-
-    .card-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 0.75rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      margin-top: 0.25rem;
-    }
-
-    .like-btn {
-      background: transparent;
-      border: 1px solid var(--border-color);
-      color: var(--text-muted);
-      padding: 0.35rem 0.75rem;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      transition: all 0.2s;
-    }
-
-    .like-btn:hover {
-      border-color: #f43f5e;
-      color: #f43f5e;
-      background-color: rgba(244, 63, 94, 0.1);
-    }
-
-    .like-btn.liked {
-      background-color: rgba(244, 63, 94, 0.15);
-      border-color: #f43f5e;
-      color: #f43f5e;
-    }
-
-    .like-btn svg {
-      width: 14px;
-      height: 14px;
-      fill: currentColor;
-    }
-
-    /* Empty State */
-    .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      background-color: var(--bg-surface);
-      border: 1px dashed var(--border-color);
-      border-radius: var(--radius);
-      grid-column: 1 / -1;
-    }
-
-    .empty-state h3 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-      color: var(--text-main);
-    }
-
-    .empty-state p {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      margin-bottom: 1.5rem;
-    }
-
-    /* Form Styles (Add View) */
-    .form-container {
-      max-width: 650px;
-      margin: 0 auto;
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      padding: 2rem;
-      box-shadow: var(--shadow);
-    }
-
-    .form-header {
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 1rem;
-    }
-
-    .form-header h2 {
-      font-size: 1.4rem;
-      font-weight: 700;
-    }
-
-    .form-header p {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-    }
-
-    .form-group {
-      margin-bottom: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    @media (max-width: 600px) {
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-main);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .char-limit {
-      font-weight: normal;
-      color: var(--text-muted);
-      font-size: 0.75rem;
-    }
-
-    input[type="text"],
-    select {
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 0.75rem 1rem;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      width: 100%;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input[type="text"]:focus,
-    select:focus {
-      border-color: var(--accent);
-    }
-
-    /* Dynamic Color Pickers Section */
-    .colors-section {
-      background-color: var(--bg-primary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 1.25rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .colors-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-
-    .colors-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 0.75rem;
-    }
-
-    .color-picker-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.3rem;
-      position: relative;
-    }
-
-    .color-picker-wrapper {
-      width: 100%;
-      height: 50px;
-      border-radius: 6px;
-      overflow: hidden;
-      border: 2px solid var(--border-color);
-      position: relative;
-      cursor: pointer;
-    }
-
-    .color-picker-wrapper input[type="color"] {
-      position: absolute;
-      top: -10px;
-      left: -10px;
-      width: 200%;
-      height: 200%;
-      cursor: pointer;
-      border: none;
-    }
-
-    .color-hex-text {
-      font-size: 0.75rem;
-      font-family: monospace;
-      color: var(--text-muted);
-      text-transform: uppercase;
-    }
-
-    .remove-color-btn {
-      position: absolute;
-      top: -6px;
-      right: -6px;
-      background-color: var(--danger);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      font-size: 10px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-    }
-
-    .add-color-btn {
-      background-color: transparent;
-      border: 1px dashed var(--border-color);
-      color: var(--accent);
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .add-color-btn:hover {
-      border-color: var(--accent);
-      background-color: var(--accent-light);
-    }
-
-    .submit-btn {
-      width: 100%;
-      background-color: var(--accent);
-      color: white;
-      border: none;
-      border-radius: var(--radius-sm);
-      padding: 0.85rem;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.2s, transform 0.1s;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-
-    .submit-btn:hover {
-      background-color: var(--accent-hover);
-    }
-
-    .submit-btn:active {
-      transform: scale(0.99);
-    }
-
-    /* Toast Notification */
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background-color: #10b981;
-      color: white;
-      padding: 0.75rem 1.25rem;
-      border-radius: var(--radius-sm);
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-      font-size: 0.9rem;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transform: translateY(100px);
-      opacity: 0;
-      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      z-index: 1000;
-    }
-
-    .toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    .toast { position: fixed; bottom: 20px; right: 20px; background-color: #10b981; color: white; padding: 0.75rem 1.25rem; border-radius: var(--radius-sm); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); font-size: 0.9rem; font-weight: 500; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; z-index: 1000; }
+    .toast.show { transform: translateY(0); opacity: 1; }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
   <header>
     <div class="header-container">
       <div class="logo-group">
         <div class="logo-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="13.5" cy="6.5" r=".5" fill="white"/>
-            <circle cx="17.5" cy="10.5" r=".5" fill="white"/>
-            <circle cx="8.5" cy="7.5" r=".5" fill="white"/>
-            <circle cx="6.5" cy="12.5" r=".5" fill="white"/>
-            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 c.92 0 1.7-.75 1.7-1.67 0-.42-.16-.82-.44-1.12-.27-.3-.43-.7-.43-1.13 0-.92.75-1.67 1.67-1.67H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9z"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 c.92 0 1.7-.75 1.7-1.67 0-.42-.16-.82-.44-1.12-.27-.3-.43-.7-.43-1.13 0-.92.75-1.67 1.67-1.67H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9z"/></svg>
         </div>
         <h1>Palette Vault</h1>
       </div>
       <nav class="nav-tabs">
-        <button class="tab-btn active" id="tab-explore" onclick="switchView('explore')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          Explore
-        </button>
-        <button class="tab-btn" id="tab-create" onclick="switchView('create')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Create New
-        </button>
+        <button class="tab-btn active" id="tab-explore" onclick="switchView('explore')">Explore</button>
+        <button class="tab-btn" id="tab-create" onclick="switchView('create')">Create New</button>
       </nav>
     </div>
   </header>
 
-  <!-- Main Content Area -->
   <main>
-    <!-- LOOKING VIEW (EXPLORE) -->
     <div id="view-explore" class="view-panel active">
       <div class="controls-card">
         <div class="controls-row-top">
           <div class="search-box">
-            <span class="search-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            </span>
-            <input type="text" id="search-input" class="search-input" placeholder="Search by title or tags (e.g., retro, neon, forest)..." oninput="handleSearchChange()">
+            <input type="text" id="search-input" class="search-input" placeholder="Search by title or tags..." oninput="handleSearchChange()">
           </div>
           <div class="sort-box">
             <select id="sort-select" class="select-input" onchange="handleSortChange()">
@@ -715,25 +170,21 @@
         </div>
       </div>
 
-      <!-- Grid displaying palettes -->
-      <div class="palette-grid" id="palette-grid">
-        <!-- Rendered via JS -->
-      </div>
+      <div class="palette-grid" id="palette-grid"></div>
     </div>
 
-    <!-- ADDING VIEW (CREATE) -->
     <div id="view-create" class="view-panel">
       <div class="form-container">
         <div class="form-header">
           <h2>Create New Palette</h2>
-          <p>Share your unique color harmony with designers and creators worldwide.</p>
+          <p>Share your color harmony with designers and creators worldwide.</p>
         </div>
 
         <form id="palette-form" onsubmit="handleFormSubmit(event)">
           <div class="form-row">
             <div class="form-group">
               <label for="title">Palette Title <span class="char-limit">max 40</span></label>
-              <input type="text" id="title" maxlength="40" placeholder="e.g. Mushroom Kingdom" required>
+              <input type="text" id="title" maxlength="40" placeholder="e.g. Neon Sunset" required>
             </div>
             <div class="form-group">
               <label for="creator_name">Creator Name <span class="char-limit">max 25</span></label>
@@ -755,504 +206,62 @@
             </div>
             <div class="form-group">
               <label for="tags">Tags <span class="char-limit">max 60</span></label>
-              <input type="text" id="tags" maxlength="60" placeholder="e.g. mario, retro, gaming" required>
+              <input type="text" id="tags" maxlength="60" placeholder="e.g. retro, chill, web3" required>
             </div>
           </div>
 
-          <!-- Dynamic Color Pickers -->
           <div class="colors-section">
             <div class="colors-header">
               <label>Palette Colors <span style="font-weight: normal; color: var(--text-muted);">(3 to 10 choices)</span></label>
               <button type="button" class="add-color-btn" id="add-color-btn" onclick="addColorPicker()">+ Add Color</button>
             </div>
-            <div class="colors-grid" id="colors-picker-grid">
-              <!-- Rendered via JS -->
-            </div>
+            <div class="colors-grid" id="colors-picker-grid"></div>
           </div>
 
-          <button type="submit" class="submit-btn">Publish Palette</button>
+          <button type="submit" id="submit-btn" class="submit-btn">Publish Palette</button>
         </form>
       </div>
     </div>
   </main>
 
-  <!-- Toast Element -->
-  <div class="toast" id="toast">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-    <span id="toast-message">Palette created!</span>
+  <!-- Comments Thread Modal -->
+  <div class="modal-overlay" id="comments-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-palette-title">Comments Thread</h3>
+        <button class="close-modal" onclick="closeCommentsModal()">✕</button>
+      </div>
+      
+      <div class="comments-list" id="comments-list"></div>
+
+      <form onsubmit="handleCommentSubmit(event, null)" style="display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+        <input type="text" id="comment-author" placeholder="Your name" maxlength="25" required style="padding: 0.5rem 0.75rem;">
+        <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+          <textarea id="comment-content" placeholder="Write a root comment... (max 280 chars)" maxlength="280" rows="2" required style="padding: 0.5rem 0.75rem; resize: none;"></textarea>
+          <span style="font-size: 0.75rem; color: var(--text-muted); align-self: flex-end;">Max 280 chars</span>
+        </div>
+        <button type="submit" class="submit-btn" style="padding: 0.5rem;">Post Comment</button>
+      </form>
+    </div>
   </div>
 
-  <script>
-    // ==========================================
-    // FAKE DATA ARRAY (Written straight into code)
-    // ==========================================
-    let paletteData = [
-      {
-        id: 1,
-        title: "Mushroom Kingdom",
-        creator_name: "Alex",
-        tags: "mario, retro, gaming, classic",
-        category: "Vibrant",
-        colors: ["#E52521", "#049CD8", "#FBD000", "#43B047", "#92400E"],
-        likes: 42,
-        added_at: "2026-09-01T10:30:00Z"
-      },
-      {
-        id: 2,
-        title: "Cyberpunk Nights",
-        creator_name: "Neo",
-        tags: "cyberpunk, futuristic, glow, synth",
-        category: "Neon",
-        colors: ["#08F7FE", "#09FBD3", "#FE53BB", "#F5D300", "#7122FA"],
-        likes: 89,
-        added_at: "2026-09-02T14:15:00Z"
-      },
-      {
-        id: 3,
-        title: "Nordic Frost",
-        creator_name: "Sven",
-        tags: "cold, winter, clean, minimal, ice",
-        category: "Minimal",
-        colors: ["#2E3440", "#4C566A", "#D8DEE9", "#88C0D0", "#81A1C1"],
-        likes: 31,
-        added_at: "2026-08-28T09:00:00Z"
-      },
-      {
-        id: 4,
-        title: "Matcha Latte",
-        creator_name: "Hana",
-        tags: "tea, soft, green, cozy, cafe",
-        category: "Pastel",
-        colors: ["#A3B18A", "#588157", "#3A5A40", "#DAD7CD", "#F4F1DE"],
-        likes: 67,
-        added_at: "2026-08-29T16:20:00Z"
-      },
-      {
-        id: 5,
-        title: "Midnight Void",
-        creator_name: "Shadow",
-        tags: "dark, abyss, sleek, space",
-        category: "Dark",
-        colors: ["#0B0C10", "#1F2833", "#C5C6C7", "#66FCF1", "#45A29E"],
-        likes: 104,
-        added_at: "2026-09-03T08:00:00Z"
-      },
-      {
-        id: 6,
-        title: "Cotton Candy Cloud",
-        creator_name: "Mia",
-        tags: "dreamy, pink, blue, sweet, sky",
-        category: "Pastel",
-        colors: ["#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA"],
-        likes: 53,
-        added_at: "2026-08-25T11:45:00Z"
-      },
-      {
-        id: 7,
-        title: "Tokyo Neon Alley",
-        creator_name: "Kenji",
-        tags: "tokyo, Japan, night, vivid, street",
-        category: "Neon",
-        colors: ["#FF007F", "#7B2CBF", "#3A0CA3", "#4CC9F0", "#F72585"],
-        likes: 76,
-        added_at: "2026-08-30T18:10:00Z"
-      },
-      {
-        id: 8,
-        title: "Charcoal & Ochre",
-        creator_name: "Elena",
-        tags: "architecture, neutral, warm, editorial",
-        category: "Minimal",
-        colors: ["#2B2D42", "#8D99AE", "#EDF2F4", "#EF233C", "#D90429"],
-        likes: 24,
-        added_at: "2026-08-26T13:00:00Z"
-      },
-      {
-        id: 9,
-        title: "Deep Sea Abyss",
-        creator_name: "Jacques",
-        tags: "ocean, water, navy, sub",
-        category: "Dark",
-        colors: ["#03045E", "#023E8A", "#0077B6", "#0096C7", "#00B4D8"],
-        likes: 45,
-        added_at: "2026-08-27T15:30:00Z"
-      },
-      {
-        id: 10,
-        title: "Sunset Boulevard",
-        creator_name: "Lucas",
-        tags: "dusk, warm, orange, purple, horizon",
-        category: "Vibrant",
-        colors: ["#355070", "#6D597A", "#B5838D", "#E56B6F", "#EAAC8B"],
-        likes: 62,
-        added_at: "2026-09-01T20:00:00Z"
-      },
-      {
-        id: 11,
-        title: "Lavender Fields",
-        creator_name: "Chloe",
-        tags: "floral, purple, calm, spring",
-        category: "Pastel",
-        colors: ["#E8D7F1", "#D3BCE3", "#A3A3E6", "#7371FC", "#5C54A4"],
-        likes: 38,
-        added_at: "2026-08-24T10:15:00Z"
-      },
-      {
-        id: 12,
-        title: "Laser Tag Arena",
-        creator_name: "Vince",
-        tags: "80s, arcade, bright, electric",
-        category: "Neon",
-        colors: ["#39FF14", "#FF007F", "#00E5FF", "#FF9900", "#9D00FF"],
-        likes: 91,
-        added_at: "2026-09-02T19:40:00Z"
-      },
-      {
-        id: 13,
-        title: "Monochrome Studio",
-        creator_name: "Zara",
-        tags: "black, white, gray, simple, clean",
-        category: "Minimal",
-        colors: ["#111111", "#333333", "#666666", "#999999", "#E5E5E5"],
-        likes: 19,
-        added_at: "2026-08-23T14:00:00Z"
-      },
-      {
-        id: 14,
-        title: "Gothic Emerald",
-        creator_name: "Damian",
-        tags: "moody, rich, green, gold, luxury",
-        category: "Dark",
-        colors: ["#0A1912", "#132A13", "#31572C", "#4F772D", "#ECF39E"],
-        likes: 58,
-        added_at: "2026-08-31T07:25:00Z"
-      },
-      {
-        id: 15,
-        title: "Fiesta Spice",
-        creator_name: "Sofia",
-        tags: "mexico, red, hot, summer, party",
-        category: "Vibrant",
-        colors: ["#FF595E", "#FFCA3A", "#8AC926", "#1982C4", "#6A4C93"],
-        likes: 47,
-        added_at: "2026-08-22T17:50:00Z"
-      },
-      {
-        id: 16,
-        title: "Eucalyptus Dew",
-        creator_name: "Oliver",
-        tags: "nature, soft, botanical, leaf",
-        category: "Pastel",
-        colors: ["#D8E2DC", "#FFE5D9", "#FFCAD4", "#F4ACB7", "#9D8189"],
-        likes: 29,
-        added_at: "2026-08-21T12:00:00Z"
-      },
-      {
-        id: 17,
-        title: "Matrix Terminal",
-        creator_name: "Cipher",
-        tags: "hacker, code, green, terminal",
-        category: "Dark",
-        colors: ["#000500", "#001500", "#003B00", "#008F11", "#00FF41"],
-        likes: 112,
-        added_at: "2026-09-02T22:10:00Z"
-      },
-      {
-        id: 18,
-        title: "Solar Flare",
-        creator_name: "Helios",
-        tags: "sun, yellow, energetic, fire",
-        category: "Vibrant",
-        colors: ["#D62828", "#F77F00", "#FCBF49", "#EAE2B7", "#003049"],
-        likes: 35,
-        added_at: "2026-08-20T16:00:00Z"
-      },
-      {
-        id: 19,
-        title: "Sandstone Dunes",
-        creator_name: "Amira",
-        tags: "desert, warm, earth, beige, calm",
-        category: "Minimal",
-        colors: ["#E63946", "#F1FAEE", "#A8DADC", "#457B9D", "#1D3557"],
-        likes: 41,
-        added_at: "2026-08-19T09:30:00Z"
-      },
-      {
-        id: 20,
-        title: "Synthwave Sunset",
-        creator_name: "Kavinsky",
-        tags: "outrun, 80s, drive, retro, grid",
-        category: "Neon",
-        colors: ["#2B0938", "#5A189A", "#7B2CBF", "#E0AFA0", "#F48C06"],
-        likes: 98,
-        added_at: "2026-09-01T15:00:00Z"
-      }
-    ];
+  <!-- Styled Universal Delete Confirmation Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="confirm-modal-content">
+      <h3 id="confirm-modal-title">Delete Item?</h3>
+      <p id="confirm-modal-desc" style="color: var(--text-muted); font-size: 0.9rem;">Are you sure you want to delete this item? This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="btn-danger" id="confirm-delete-btn">Delete</button>
+        <button class="pill-btn" onclick="closeConfirmModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
-    // ==========================================
-    // APP STATE
-    // ==========================================
-    let currentCategory = "All";
-    let currentSearch = "";
-    let currentSort = "newest";
-    let formColors = ["#6366F1", "#EC4899", "#3B82F6", "#10B981"]; // Default starting colors for form
-    let likedSet = new Set(); // Track liked palette IDs in local session
+  <div class="toast" id="toast">
+    <span id="toast-message">Action successful!</span>
+  </div>
 
-    // ==========================================
-    // INITIALIZATION & VIEW SWITCHING
-    // ==========================================
-    document.addEventListener("DOMContentLoaded", () => {
-      renderPickers();
-      renderPalettes();
-    });
-
-    function switchView(viewName) {
-      document.querySelectorAll(".view-panel").forEach(panel => panel.classList.remove("active"));
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-
-      if (viewName === "explore") {
-        document.getElementById("view-explore").classList.add("active");
-        document.getElementById("tab-explore").classList.add("active");
-      } else {
-        document.getElementById("view-create").classList.add("active");
-        document.getElementById("tab-create").classList.add("active");
-      }
-    }
-
-    // ==========================================
-    // EXPLORE VIEW LOGIC (Filtering, Sorting, Searching)
-    // ==========================================
-    function handleCategorySelect(category) {
-      currentCategory = category;
-      document.querySelectorAll(".pill-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.textContent.trim() === category || (category === "All" && btn.textContent.trim() === "All Vibes"));
-      });
-      renderPalettes();
-    }
-
-    function handleSearchChange() {
-      currentSearch = document.getElementById("search-input").value.toLowerCase().trim();
-      renderPalettes();
-    }
-
-    function handleSortChange() {
-      currentSort = document.getElementById("sort-select").value;
-      renderPalettes();
-    }
-
-    function toggleLike(id) {
-      const item = paletteData.find(p => p.id === id);
-      if (!item) return;
-
-      if (likedSet.has(id)) {
-        likedSet.delete(id);
-        item.likes--;
-      } else {
-        likedSet.add(id);
-        item.likes++;
-      }
-
-      renderPalettes();
-    }
-
-    function formatDate(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-      });
-    }
-
-    function renderPalettes() {
-      const grid = document.getElementById("palette-grid");
-
-      // 1. Filter by category
-      let filtered = paletteData.filter(item => {
-        if (currentCategory !== "All" && item.category !== currentCategory) {
-          return false;
-        }
-        // 2. Search by title or tags
-        if (currentSearch) {
-          const matchTitle = item.title.toLowerCase().includes(currentSearch);
-          const matchTags = item.tags.toLowerCase().includes(currentSearch);
-          const matchCreator = item.creator_name.toLowerCase().includes(currentSearch);
-          if (!matchTitle && !matchTags && !matchCreator) return false;
-        }
-        return true;
-      });
-
-      // 3. Sort by likes or date
-      filtered.sort((a, b) => {
-        if (currentSort === "likes") {
-          return b.likes - a.likes;
-        } else { // newest
-          return new Date(b.added_at) - new Date(a.added_at);
-        }
-      });
-
-      // Apply 20 limit as planned
-      const displayItems = filtered.slice(0, 20);
-
-      // Handle Awkward Case: Nothing saved yet / no search results
-      if (displayItems.length === 0) {
-        grid.innerHTML = `
-          <div class="empty-state">
-            <h3>No color palettes found!</h3>
-            <p>No color palettes match your current filter. Be the first to create one!</p>
-            <button class="submit-btn" style="width: auto; padding: 0.6rem 1.5rem;" onclick="switchView('create')">+ Create Palette</button>
-          </div>
-        `;
-        return;
-      }
-
-      grid.innerHTML = displayItems.map(item => {
-        const isLiked = likedSet.has(item.id);
-
-        return `
-          <div class="palette-card">
-            <div class="swatch-container">
-              ${item.colors.map(color => `
-                <div class="swatch-bar" style="background-color: ${color};" onclick="copyToClipboard('${color}')">
-                  <span class="color-code">${color}</span>
-                </div>
-              `).join('')}
-            </div>
-            <div class="card-body">
-              <div class="card-header">
-                <h3 class="card-title">${escapeHtml(item.title)}</h3>
-                <span class="card-category">${escapeHtml(item.category)}</span>
-              </div>
-              <div class="card-meta">
-                <span>by <strong>${escapeHtml(item.creator_name)}</strong></span>
-                <span class="card-date">${formatDate(item.added_at)}</span>
-              </div>
-              <div class="card-tags">
-                ${item.tags.split(',').map(tag => `<span class="tag-item">#${escapeHtml(tag.trim())}</span>`).join('')}
-              </div>
-              <div class="card-footer">
-                <button class="like-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike(${item.id})">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                  </svg>
-                  ${item.likes}
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // ==========================================
-    // CREATE VIEW LOGIC (Form & Color Pickers)
-    // ==========================================
-    function renderPickers() {
-      const container = document.getElementById("colors-picker-grid");
-      const addBtn = document.getElementById("add-color-btn");
-
-      // Hide or show add button depending on limit (3 to 10)
-      addBtn.style.display = formColors.length >= 10 ? "none" : "block";
-
-      container.innerHTML = formColors.map((hex, index) => `
-        <div class="color-picker-item">
-          ${formColors.length > 3 ? `
-            <button type="button" class="remove-color-btn" onclick="removeColorPicker(${index})" title="Remove color">&times;</button>
-          ` : ''}
-          <div class="color-picker-wrapper" style="background-color: ${hex}">
-            <input type="color" value="${hex}" onchange="updateFormColor(${index}, this.value)">
-          </div>
-          <span class="color-hex-text">${hex}</span>
-        </div>
-      `).join('');
-    }
-
-    function addColorPicker() {
-      if (formColors.length < 10) {
-        // Generate random nice color
-        const randomHex = "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase();
-        formColors.push(randomHex);
-        renderPickers();
-      }
-    }
-
-    function removeColorPicker(index) {
-      if (formColors.length > 3) {
-        formColors.splice(index, 1);
-        renderPickers();
-      }
-    }
-
-    function updateFormColor(index, val) {
-      formColors[index] = val.toUpperCase();
-      renderPickers();
-    }
-
-    function handleFormSubmit(e) {
-      e.preventDefault();
-
-      const titleInput = document.getElementById("title");
-      const creatorInput = document.getElementById("creator_name");
-      const categoryInput = document.getElementById("category");
-      const tagsInput = document.getElementById("tags");
-
-      // Create new item
-      const newPalette = {
-        id: Date.now(),
-        title: titleInput.value.trim(),
-        creator_name: creatorInput.value.trim(),
-        category: categoryInput.value,
-        tags: tagsInput.value.trim(),
-        colors: [...formColors],
-        likes: 0,
-        added_at: new Date().toISOString()
-      };
-
-      // Add to fake dataset (prepend)
-      paletteData.unshift(newPalette);
-
-      // Reset form
-      titleInput.value = "";
-      creatorInput.value = "";
-      categoryInput.value = "";
-      tagsInput.value = "";
-      formColors = ["#6366F1", "#EC4899", "#3B82F6", "#10B981"];
-      renderPickers();
-
-      // Switch to explore & notify
-      switchView("explore");
-      renderPalettes();
-      showToast("New palette successfully published!");
-    }
-
-    // ==========================================
-    // UTILITIES
-    // ==========================================
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text);
-      showToast(`Copied ${text} to clipboard!`);
-    }
-
-    function showToast(msg) {
-      const toast = document.getElementById("toast");
-      document.getElementById("toast-message").textContent = msg;
-      toast.classList.add("show");
-      setTimeout(() => {
-        toast.classList.remove("show");
-      }, 2500);
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, function(m) {
-        return {
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#039;'
-        }[m];
-      });
-    }
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="palette-data.js"></script>
 </body>
 </html>

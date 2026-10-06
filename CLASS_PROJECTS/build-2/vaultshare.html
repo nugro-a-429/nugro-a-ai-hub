@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VaultShare - Secure Media & Asset Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .modal-backdrop {
+      background-color: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(6px);
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white">
+
+  <header class="sticky top-0 z-30 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="setActiveTab('feed')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-shield-halved text-white text-lg"></i>
+        </div>
+        <div>
+          <span class="text-lg font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">VaultShare</span>
+          <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">Build 2</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 border border-slate-800 rounded-xl">
+        <button onclick="setActiveTab('feed')" id="tab-feed" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
+          <i class="fa-solid fa-globe mr-1.5"></i>Public Feed
+        </button>
+        <button onclick="setActiveTab('my-vault')" id="tab-my-vault" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-vault mr-1.5"></i>My Vault
+        </button>
+        <button onclick="setActiveTab('shared')" id="tab-shared" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-user-group mr-1.5"></i>Shared With Me
+        </button>
+      </nav>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-xs hidden lg:block">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+          <input type="text" id="searchInput" onkeyup="renderFiles()" placeholder="Search files, @username..." class="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+        </div>
+      </div>
+
+      <!-- User Action Controls & Dropdown -->
+      <div class="flex items-center gap-3">
+        <button onclick="openModal('onboardingModal')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition" title="Preview Username Setup Screen">
+          <i class="fa-solid fa-id-badge text-emerald-400"></i>
+          <span>Onboarding</span>
+        </button>
+
+        <!-- User Profile Dropdown Badge -->
+        <div class="relative group">
+          <button class="flex items-center gap-2.5 p-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-8 h-8 rounded-lg object-cover ring-2 ring-indigo-500/30">
+            <div class="text-left hidden sm:block pr-1">
+              <div class="text-xs font-bold text-slate-200 leading-none">@alex_dev</div>
+              <div class="text-[10px] text-slate-400 leading-tight mt-0.5">alex@build2.io</div>
+            </div>
+            <i class="fa-solid fa-chevron-down text-xs text-slate-500 ml-1"></i>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div class="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50 p-1.5">
+            <div class="px-3 py-2 border-b border-slate-800/80 mb-1">
+              <p class="text-xs font-bold text-slate-200">Alex Rivera</p>
+              <p class="text-[11px] text-indigo-400">@alex_dev</p>
+            </div>
+            <button onclick="openModal('changePasswordModal')" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition flex items-center gap-2">
+              <i class="fa-solid fa-key text-slate-400"></i> Change Password
+            </button>
+            <button onclick="openModal('onboardingModal')" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition flex items-center gap-2">
+              <i class="fa-solid fa-pen-to-square text-slate-400"></i> Edit Username
+            </button>
+            <div class="border-t border-slate-800/80 my-1"></div>
+            <button onclick="showToast('Signed out successfully!')" class="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition flex items-center gap-2">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    
+    <div class="bg-gradient-to-r from-slate-900 via-slate-900/80 to-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden shadow-xl">
+      <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="space-y-2 relative z-10">
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
+          <i class="fa-solid fa-lock text-[10px]"></i> Row-Level Security Protected
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Welcome back, <span class="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">@alex_dev</span></h1>
+        <p class="text-slate-400 text-xs sm:text-sm max-w-xl">Store, organize, and securely share audio clips, videos, photos, and HEIC files with public feeds or private author-only channels.</p>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 relative z-10">
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 min-w-[200px]">
+          <div class="flex justify-between text-xs mb-1.5">
+            <span class="text-slate-400 font-medium">Storage Used</span>
+            <span class="text-indigo-400 font-bold">14.2 MB / 1 GB</span>
+          </div>
+          <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full" style="width: 14.2%;"></div>
+          </div>
+        </div>
+
+        <button onclick="openModal('uploadModal')" class="px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2 active:scale-95">
+          <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+          <span>+ Upload File</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Tabs -->
+    <div class="flex md:hidden gap-1 bg-slate-900 p-1 border border-slate-800 rounded-xl">
+      <button onclick="setActiveTab('feed')" id="mobile-tab-feed" class="flex-1 py-2 text-xs font-semibold rounded-lg transition text-indigo-400 bg-indigo-500/10">Public Feed</button>
+      <button onclick="setActiveTab('my-vault')" id="mobile-tab-my-vault" class="flex-1 py-2 text-xs font-semibold rounded-lg transition text-slate-400">My Vault</button>
+      <button onclick="setActiveTab('shared')" id="mobile-tab-shared" class="flex-1 py-2 text-xs font-semibold rounded-lg transition text-slate-400">Shared</button>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <h2 id="sectionTitle" class="text-lg font-bold text-slate-200 flex items-center gap-2">
+        <i class="fa-solid fa-globe text-indigo-400"></i> Public Asset Feed
+      </h2>
+      <span id="fileCountBadge" class="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-2.5 py-1 rounded-lg">Showing 4 files</span>
+    </div>
+
+    <div id="fileGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <!-- Dynamic JS Content Injected Here -->
+    </div>
+
+  </main>
+
+  <div id="fileDetailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div id="modalFileIcon" class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <i class="fa-solid fa-file"></i>
+          </div>
+          <div>
+            <h3 id="modalFileName" class="text-sm font-bold text-white">Filename.png</h3>
+            <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+              <span id="modalFileOwner">by @alex_dev</span>
+              <span>•</span>
+              <span id="modalFileSize">2.4 MB</span>
+              <span>•</span>
+              <span id="modalVisibilityBadge" class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700">Public</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="showToast('Downloading asset...')" class="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition" title="Download Asset">
+            <i class="fa-solid fa-download"></i>
+          </button>
+          <button onclick="closeModal('fileDetailModal')" class="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (Preview + Dual Channel Comments) -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        
+        <!-- Asset Preview Container -->
+        <div id="modalPreviewContainer" class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden min-h-[200px] flex items-center justify-center">
+          <!-- Dynamically populated with img, video player, audio waveform, or PDF preview -->
+        </div>
+
+        <!-- Dual Channel Comments Section -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Channel Discussion</h4>
+            
+            <!-- Channel Switcher Buttons -->
+            <div class="flex bg-slate-950 p-1 border border-slate-800 rounded-lg">
+              <button onclick="switchCommentChannel('public')" id="comment-tab-public" class="px-3 py-1 text-xs font-medium rounded-md transition text-white bg-indigo-600">
+                <i class="fa-solid fa-comments mr-1.5"></i>Public (2)
+              </button>
+              <button onclick="switchCommentChannel('private')" id="comment-tab-private" class="px-3 py-1 text-xs font-medium rounded-md transition text-slate-400 hover:text-white">
+                <i class="fa-solid fa-user-shield mr-1.5"></i>Author Note (1)
+              </button>
+            </div>
+          </div>
+
+          <!-- Comment Feed List -->
+          <div id="commentList" class="space-y-3 min-h-[140px] max-h-[220px] overflow-y-auto pr-1">
+            <!-- Dynamic comments injected here -->
+          </div>
+
+          <!-- Add Comment Input Box -->
+          <div class="pt-2 border-t border-slate-800/80">
+            <div class="relative flex items-center">
+              <input type="text" id="newCommentInput" placeholder="Add a public comment or author-only message..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+              <button onclick="postComment()" class="absolute right-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+            <p id="channelHint" class="text-[10px] text-slate-500 mt-1">Posting to <span class="text-indigo-400 font-semibold">Public Discussion</span> channel.</p>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div id="uploadModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i> Upload Asset
+        </h3>
+        <button onclick="closeModal('uploadModal')" class="text-slate-400 hover:text-white text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div class="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-xl p-6 text-center cursor-pointer transition bg-slate-950/50 space-y-2">
+        <div class="w-12 h-12 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 mx-auto">
+          <i class="fa-solid fa-file-arrow-up text-xl"></i>
+        </div>
+        <p class="text-xs font-semibold text-slate-200">Click or drag file to upload</p>
+        <p class="text-[10px] text-slate-500">Allowed types: MP3, MP4, PNG, JPG, HEIC, PDF (Max 50MB)</p>
+      </div>
+
+      <!-- File Inputs & Visibility Controls -->
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Asset Title</label>
+          <input type="text" id="uploadTitleInput" placeholder="e.g. Project Architecture Diagram v2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Access & Visibility</label>
+          <select id="uploadVisibilitySelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="public">🌐 Public (Visible on Public Feed)</option>
+            <option value="private">🔒 Private (Only visible in My Vault)</option>
+            <option value="shared">👥 Direct Share (Select specific users)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button onclick="closeModal('uploadModal')" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-xl transition">Cancel</button>
+        <button onclick="submitUpload()" class="px-5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-600/20 transition">Upload Asset</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="onboardingModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-xl">
+          <i class="fa-solid fa-user-astronaut"></i>
+        </div>
+        <h3 class="text-lg font-bold text-white">Choose Your Username</h3>
+        <p class="text-xs text-slate-400">First-time setup: This handle will identify your uploads across VaultShare instead of your email address.</p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-medium text-slate-400">Unique Username</label>
+        <div class="relative flex items-center">
+          <span class="absolute left-3.5 text-xs text-slate-500 font-bold">@</span>
+          <input type="text" id="usernameInput" value="alex_dev" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+        <p class="text-[10px] text-emerald-400 flex items-center gap-1">
+          <i class="fa-solid fa-circle-check"></i> Username `@alex_dev` is available
+        </p>
+      </div>
+
+      <button onclick="saveUsername()" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition">Save Profile & Continue</button>
+    </div>
+  </div>
+
+  <div id="changePasswordModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-key text-indigo-400"></i> Change Password
+        </h3>
+        <button onclick="closeModal('changePasswordModal')" class="text-slate-400 hover:text-white text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Current Password</label>
+          <input type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">New Password</label>
+          <input type="password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <!-- Password Rules Compliance Checklist -->
+      <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-3 space-y-1.5 text-[11px]">
+        <p class="font-semibold text-slate-400 mb-1">Supabase Password Policy:</p>
+        <div class="flex items-center gap-2 text-emerald-400"><i class="fa-solid fa-check"></i> At least 8 characters long</div>
+        <div class="flex items-center gap-2 text-emerald-400"><i class="fa-solid fa-check"></i> Contains lowercase & uppercase letter</div>
+        <div class="flex items-center gap-2 text-emerald-400"><i class="fa-solid fa-check"></i> Contains at least one number</div>
+      </div>
+
+      <button onclick="closeModal('changePasswordModal'); showToast('Password updated successfully!')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition">Update Password</button>
+    </div>
+  </div>
+
+  <script>
+    // Mock Data Store
+    const mockFiles = [
+      {
+        id: '1',
+        title: 'UI Design Spec & Wireframe',
+        type: 'image',
+        file_type: 'image/png',
+        size: '3.4 MB',
+        owner: '@alex_dev',
+        visibility: 'public',
+        thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+        publicComments: [
+          { author: '@dev_sara', time: '2 hours ago', text: 'Love the color palette choice! Matches Build 2 guidelines perfectly.' },
+          { author: '@alex_dev', time: '1 hour ago', text: 'Thanks Sara! Storage bucket limits are set to 50MB.' }
+        ],
+        privateComments: [
+          { author: '@alex_dev', time: '3 hours ago', text: 'Author Note: Check export quality for HEIC assets later.' }
+        ]
+      },
+      {
+        id: '2',
+        title: 'Podcast Intro Beat Loop',
+        type: 'audio',
+        file_type: 'audio/mpeg',
+        size: '12.8 MB',
+        owner: '@alex_dev',
+        visibility: 'public',
+        publicComments: [
+          { author: '@music_pete', time: '1 day ago', text: 'Clean synth mix! Is this royalty free?' }
+        ],
+        privateComments: [
+          { author: '@alex_dev', time: '1 day ago', text: 'Author Note: Mastered at 320kbps MP3 format.' }
+        ]
+      },
+      {
+        id: '3',
+        title: 'App Demo Walkthrough',
+        type: 'video',
+        file_type: 'video/mp4',
+        size: '24.1 MB',
+        owner: '@alex_dev',
+        visibility: 'private',
+        duration: '0:42',
+        publicComments: [],
+        privateComments: [
+          { author: '@alex_dev', time: '4 hours ago', text: 'Private note: RLS successfully hides this from other users.' }
+        ]
+      },
+      {
+        id: '4',
+        title: 'Supabase RLS Architecture',
+        type: 'pdf',
+        file_type: 'application/pdf',
+        size: '1.2 MB',
+        owner: '@johndoe',
+        visibility: 'shared',
+        publicComments: [
+          { author: '@johndoe', time: '3 days ago', text: 'Sharing DB Schema with @alex_dev for review.' }
+        ],
+        privateComments: []
+      }
+    ];
+
+    let currentTab = 'feed';
+    let currentSelectedFile = mockFiles[0];
+    let currentCommentChannel = 'public';
+
+    function setActiveTab(tab) {
+      currentTab = tab;
+      
+      // Reset button styles
+      ['feed', 'my-vault', 'shared'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        const mobBtn = document.getElementById(`mobile-tab-${t}`);
+        if(btn) {
+          btn.className = t === tab 
+            ? "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-indigo-400 bg-indigo-500/10 border border-indigo-500/20"
+            : "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-slate-200";
+        }
+        if(mobBtn) {
+          mobBtn.className = t === tab 
+            ? "flex-1 py-2 text-xs font-semibold rounded-lg transition text-indigo-400 bg-indigo-500/10"
+            : "flex-1 py-2 text-xs font-semibold rounded-lg transition text-slate-400";
+        }
+      });
+
+      const sectionTitle = document.getElementById('sectionTitle');
+      if (tab === 'feed') {
+        sectionTitle.innerHTML = `<i class="fa-solid fa-globe text-indigo-400"></i> Public Asset Feed`;
+      } else if (tab === 'my-vault') {
+        sectionTitle.innerHTML = `<i class="fa-solid fa-vault text-emerald-400"></i> My Private & Shared Assets`;
+      } else {
+        sectionTitle.innerHTML = `<i class="fa-solid fa-user-group text-violet-400"></i> Shared Directly With Me`;
+      }
+
+      renderFiles();
+    }
+
+    function renderFiles() {
+      const grid = document.getElementById('fileGrid');
+      const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+      
+      let filtered = mockFiles.filter(f => {
+        const matchesSearch = f.title.toLowerCase().includes(searchQuery) || f.owner.toLowerCase().includes(searchQuery);
+        if (currentTab === 'feed') return f.visibility === 'public' && matchesSearch;
+        if (currentTab === 'my-vault') return f.owner === '@alex_dev' && matchesSearch;
+        if (currentTab === 'shared') return f.visibility === 'shared' && matchesSearch;
+        return matchesSearch;
+      });
+
+      document.getElementById('fileCountBadge').innerText = `Showing ${filtered.length} file${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-16 text-center space-y-3">
+            <div class="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center mx-auto">
+              <i class="fa-solid fa-folder-open text-xl"></i>
+            </div>
+            <p class="text-xs text-slate-400">No assets found in this view.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(file => `
+        <div onclick="openFileDetails('${file.id}')" class="group bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer shadow-lg hover:shadow-indigo-500/10 flex flex-col">
+          
+          <!-- Thumbnail / Preview Header -->
+          <div class="h-40 bg-slate-950 relative overflow-hidden flex items-center justify-center border-b border-slate-800/80">
+            ${file.type === 'image' ? `
+              <img src="${file.thumbnail}" alt="${file.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+            ` : file.type === 'audio' ? `
+              <div class="w-full px-6 text-center space-y-2">
+                <div class="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
+                  <i class="fa-solid fa-music text-lg"></i>
+                </div>
+                <!-- Waveform placeholder SVG -->
+                <div class="flex items-center justify-center gap-1 h-6">
+                  <span class="w-1 bg-indigo-500 h-3 rounded-full animate-pulse"></span>
+                  <span class="w-1 bg-indigo-400 h-6 rounded-full"></span>
+                  <span class="w-1 bg-indigo-500 h-4 rounded-full"></span>
+                  <span class="w-1 bg-indigo-300 h-2 rounded-full"></span>
+                  <span class="w-1 bg-indigo-500 h-5 rounded-full"></span>
+                  <span class="w-1 bg-indigo-400 h-3 rounded-full"></span>
+                </div>
+              </div>
+            ` : file.type === 'video' ? `
+              <div class="relative w-full h-full flex items-center justify-center bg-slate-900/80">
+                <i class="fa-solid fa-circle-play text-4xl text-indigo-400 opacity-80 group-hover:scale-110 transition"></i>
+                <span class="absolute bottom-2 right-2 px-2 py-0.5 text-[10px] bg-slate-950/80 text-slate-300 rounded border border-slate-800 font-mono">${file.duration}</span>
+              </div>
+            ` : `
+              <div class="text-center space-y-2">
+                <i class="fa-solid fa-file-pdf text-4xl text-rose-400"></i>
+                <p class="text-[10px] text-slate-500 font-mono">PDF Document</p>
+              </div>
+            `}
+
+            <!-- Visibility Badge Top Right -->
+            <div class="absolute top-3 right-3">
+              ${file.visibility === 'public' ? `
+                <span class="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full flex items-center gap-1"><i class="fa-solid fa-globe text-[8px]"></i> Public</span>
+              ` : file.visibility === 'private' ? `
+                <span class="px-2 py-0.5 text-[10px] font-semibold bg-slate-800/90 text-slate-300 border border-slate-700 rounded-full flex items-center gap-1"><i class="fa-solid fa-lock text-[8px]"></i> Private</span>
+              ` : `
+                <span class="px-2 py-0.5 text-[10px] font-semibold bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full flex items-center gap-1"><i class="fa-solid fa-user-group text-[8px]"></i> Shared</span>
+              `}
+            </div>
+          </div>
+
+          <!-- Card Content Body -->
+          <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+            <div>
+              <h3 class="text-xs font-bold text-slate-100 group-hover:text-indigo-300 transition truncate">${file.title}</h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">${file.owner}</p>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500">
+              <span>${file.size}</span>
+              <div class="flex items-center gap-1 text-slate-400 hover:text-indigo-400 transition">
+                <i class="fa-solid fa-comments"></i>
+                <span class="font-bold">${file.publicComments.length + file.privateComments.length}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      `).join('');
+    }
+
+    function openFileDetails(id) {
+      currentSelectedFile = mockFiles.find(f => f.id === id) || mockFiles[0];
+      
+      document.getElementById('modalFileName').innerText = currentSelectedFile.title;
+      document.getElementById('modalFileOwner').innerText = `by ${currentSelectedFile.owner}`;
+      document.getElementById('modalFileSize').innerText = currentSelectedFile.size;
+      document.getElementById('modalVisibilityBadge').innerText = currentSelectedFile.visibility.toUpperCase();
+
+      // Render Asset Preview
+      const previewContainer = document.getElementById('modalPreviewContainer');
+      if (currentSelectedFile.type === 'image') {
+        previewContainer.innerHTML = `<img src="${currentSelectedFile.thumbnail}" class="max-h-64 object-contain w-full">`;
+      } else if (currentSelectedFile.type === 'audio') {
+        previewContainer.innerHTML = `
+          <div class="p-6 text-center w-full space-y-3">
+            <i class="fa-solid fa-music text-3xl text-indigo-400"></i>
+            <audio controls class="w-full max-w-md mx-auto">
+              <source src="https://www.w3schools.com/html/horse.mp3" type="audio/mpeg">
+            </audio>
+          </div>
+        `;
+      } else if (currentSelectedFile.type === 'video') {
+        previewContainer.innerHTML = `
+          <div class="p-4 w-full">
+            <video controls class="w-full max-h-60 rounded-lg">
+              <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+            </video>
+          </div>
+        `;
+      } else {
+        previewContainer.innerHTML = `
+          <div class="p-8 text-center space-y-2">
+            <i class="fa-solid fa-file-pdf text-5xl text-rose-400"></i>
+            <p class="text-xs text-slate-300 font-semibold">${currentSelectedFile.title}.pdf</p>
+            <p class="text-[10px] text-slate-500">Row-Level Security Verified Document</p>
+          </div>
+        `;
+      }
+
+      switchCommentChannel('public');
+      openModal('fileDetailModal');
+    }
+
+    function switchCommentChannel(channel) {
+      currentCommentChannel = channel;
+      const pubBtn = document.getElementById('comment-tab-public');
+      const privBtn = document.getElementById('comment-tab-private');
+      const hint = document.getElementById('channelHint');
+
+      pubBtn.innerHTML = `<i class="fa-solid fa-comments mr-1.5"></i>Public (${currentSelectedFile.publicComments.length})`;
+      privBtn.innerHTML = `<i class="fa-solid fa-user-shield mr-1.5"></i>Author Note (${currentSelectedFile.privateComments.length})`;
+
+      if (channel === 'public') {
+        pubBtn.className = "px-3 py-1 text-xs font-medium rounded-md transition text-white bg-indigo-600";
+        privBtn.className = "px-3 py-1 text-xs font-medium rounded-md transition text-slate-400 hover:text-white";
+        hint.innerHTML = `Posting to <span class="text-indigo-400 font-semibold">Public Discussion</span> channel.`;
+      } else {
+        privBtn.className = "px-3 py-1 text-xs font-medium rounded-md transition text-white bg-emerald-600";
+        pubBtn.className = "px-3 py-1 text-xs font-medium rounded-md transition text-slate-400 hover:text-white";
+        hint.innerHTML = `Posting to <span class="text-emerald-400 font-semibold">Author-Only Private Note</span> channel. Protected by RLS.`;
+      }
+
+      renderComments();
+    }
+
+    function renderComments() {
+      const list = document.getElementById('commentList');
+      const comments = currentCommentChannel === 'public' ? currentSelectedFile.publicComments : currentSelectedFile.privateComments;
+
+      if (comments.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-500 italic py-4 text-center">No comments in this channel yet.</p>`;
+        return;
+      }
+
+      list.innerHTML = comments.map(c => `
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+          <div class="flex items-center justify-between text-[10px]">
+            <span class="font-bold text-indigo-300">${c.author}</span>
+            <span class="text-slate-500">${c.time}</span>
+          </div>
+          <p class="text-xs text-slate-200">${c.text}</p>
+        </div>
+      `).join('');
+    }
+
+    function postComment() {
+      const input = document.getElementById('newCommentInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const newComment = {
+        author: '@alex_dev',
+        time: 'Just now',
+        text: text
+      };
+
+      if (currentCommentChannel === 'public') {
+        currentSelectedFile.publicComments.push(newComment);
+      } else {
+        currentSelectedFile.privateComments.push(newComment);
+      }
+
+      input.value = '';
+      switchCommentChannel(currentCommentChannel);
+      renderFiles();
+    }
+
+    function submitUpload() {
+      const title = document.getElementById('uploadTitleInput').value.trim() || 'New Uploaded Asset';
+      const visibility = document.getElementById('uploadVisibilitySelect').value;
+
+      mockFiles.unshift({
+        id: Date.now().toString(),
+        title: title,
+        type: 'image',
+        file_type: 'image/png',
+        size: '1.8 MB',
+        owner: '@alex_dev',
+        visibility: visibility,
+        thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+        publicComments: [],
+        privateComments: []
+      });
+
+      closeModal('uploadModal');
+      renderFiles();
+      showToast('Asset uploaded successfully!');
+    }
+
+    function saveUsername() {
+      const uname = document.getElementById('usernameInput').value.trim();
+      if(uname) {
+        showToast(`Username set to @${uname}`);
+        closeModal('onboardingModal');
+      }
+    }
+
+    // Modal Helpers
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-5 right-5 z-50 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xl border border-indigo-400/30 transition-all duration-300';
+      toast.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>${msg}`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2500);
+    }
+
+    // Initialize on page load
+    window.onload = function() {
+      renderFiles();
+    };
+  </script>
+</body>
+</html>

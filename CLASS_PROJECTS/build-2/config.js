@@ -1,3 +1,2 @@
-// config.js - Supabase Credentials Configuration
 window.SUPABASE_URL = "https://kprdpuxtuebkdgvrjgdb.supabase.co";
-window.SUPABASE_ANON_KEY = "sb_publishable_OZJLVnky1vwB9QJhTheFBQ_AcgsRhj-";
+window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwcmRwdXh0dWVia2RndnJqZ2RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MzQyMTQsImV4cCI6MjEwNzAxMDIxNH0.cM5atWQ9rCHJmJuL0MN1UhG5vkXe2rFdpM18gH7v6Uc";

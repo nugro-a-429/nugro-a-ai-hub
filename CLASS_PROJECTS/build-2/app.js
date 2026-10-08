@@ -1,7 +1,7 @@
 // app.js - Client-Side Supabase Authentication Logic
 
-// Initialize Supabase Client
-const supabase = window.supabase.createClient(
+// 1. Initialize Supabase Client with a unique variable name 'client'
+const client = window.supabase.createClient(
     window.SUPABASE_URL,
     window.SUPABASE_ANON_KEY
   );
@@ -47,7 +47,7 @@ const supabase = window.supabase.createClient(
       return;
     }
   
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await client.auth.signUp({
       email: email,
       password: password
     });
@@ -55,7 +55,7 @@ const supabase = window.supabase.createClient(
     if (error) {
       showError(error.message);
     } else if (data.user) {
-      showSuccess('Account created successfully! Redirecting...');
+      showSuccess('Account created successfully!');
     }
   });
   
@@ -70,7 +70,7 @@ const supabase = window.supabase.createClient(
       return;
     }
   
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await client.auth.signInWithPassword({
       email: email,
       password: password
     });
@@ -83,14 +83,14 @@ const supabase = window.supabase.createClient(
   // 3. Sign-Out Action
   btnSignOut.addEventListener('click', async () => {
     clearAlerts();
-    const { error } = await supabase.auth.signOut();
+    const { error } = await client.auth.signOut();
     if (error) {
       alert('Error signing out: ' + error.message);
     }
   });
   
   // 4. Session Persistence & Auth State Listener
-  supabase.auth.onAuthStateChange((event, session) => {
+  client.auth.onAuthStateChange((event, session) => {
     if (session && session.user) {
       // Show Main App View
       authScreen.classList.add('hidden');

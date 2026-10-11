@@ -205,7 +205,49 @@
     </form>
   </div>
 
+  <!-- MAIN SOUND SHARE APP SCREEN -->
+  <div id="app-screen" class="container hidden">
+    <div class="brand">
+      <h1>🔊 Sound Share</h1>
+      <p>Your audio vault is active.</p>
+    </div>
+
+    <div class="user-badge">
+      <p style="font-size:0.8rem; color:var(--text-muted);">Signed in as:</p>
+      <strong id="user-email-display" style="color:var(--accent);">---</strong>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="upload-section">
+      <h3 style="font-size:1rem; margin-bottom:0.75rem;">Upload New Sound</h3>
+      <div id="upload-alert" class="alert alert-danger"></div>
+      <div id="upload-success" class="alert alert-success"></div>
+
+      <div class="form-group">
+        <label for="clip-title">Title / Label</label>
+        <input type="text" id="clip-title" placeholder="e.g., Cool Beat Drop" />
+      </div>
+
+      <div class="form-group">
+        <label for="audio-file">Select Audio File (MP3, under 20MB)</label>
+        <input type="file" id="audio-file" accept="audio/mpeg,audio/mp3" />
+      </div>
+
+      <button type="button" id="btn-upload" class="btn-primary" style="width:100%; margin-top:0.5rem;">
+        Upload Audio
+      </button>
+    </div>
+
+    <!-- Clips Section -->
+    <h3 style="font-size:1rem; margin-bottom:0.5rem;">Your Sound Library</h3>
+    <div id="clip-list" class="clip-list">
+      <p style="color:var(--text-muted); font-size:0.85rem;" id="no-clips-msg">No audio clips uploaded yet.</p>
+    </div>
+
+    <button id="btn-signout" class="btn-danger">Sign Out</button>
+  </div>
+
   <script src="config.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

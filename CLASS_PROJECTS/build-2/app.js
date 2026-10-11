@@ -12,6 +12,7 @@ const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
 const btnSignIn = document.getElementById('btn-signin');
 const btnSignUp = document.getElementById('btn-signup');
+const btnGitHub = document.getElementById('btn-github');
 const btnSignOut = document.getElementById('btn-signout');
 const authAlert = document.getElementById('auth-alert');
 const authSuccess = document.getElementById('auth-success');
@@ -119,7 +120,22 @@ btnSignIn.addEventListener('click', async () => {
   }
 });
 
-// 3. SIGN OUT
+// 3. SIGN IN WITH GITHUB
+btnGitHub.addEventListener('click', async () => {
+  clearAuthAlerts();
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: window.location.origin + window.location.pathname
+    }
+  });
+
+  if (error) {
+    showAuthError(error.message);
+  }
+});
+
+// 4. SIGN OUT
 btnSignOut.addEventListener('click', async () => {
   await client.auth.signOut();
 });
@@ -212,22 +228,5 @@ client.auth.onAuthStateChange((event, session) => {
     appScreen.classList.add('hidden');
     authScreen.classList.remove('hidden');
     userEmailDisplay.textContent = '';
-  }
-});
-
-const btnGitHub = document.getElementById('btn-github');
-
-// 4. SIGN IN WITH GITHUB
-btnGitHub.addEventListener('click', async () => {
-  clearAuthAlerts();
-  const { error } = await client.auth.signInWithOAuth({
-    provider: 'github',
-    options: {
-      redirectTo: window.location.origin + window.location.pathname
-    }
-  });
-
-  if (error) {
-    showAuthError(error.message);
   }
 });

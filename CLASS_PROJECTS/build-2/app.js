@@ -214,3 +214,20 @@ client.auth.onAuthStateChange((event, session) => {
     userEmailDisplay.textContent = '';
   }
 });
+
+const btnGitHub = document.getElementById('btn-github');
+
+// 4. SIGN IN WITH GITHUB
+btnGitHub.addEventListener('click', async () => {
+  clearAuthAlerts();
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'github',
+    options: {
+      redirectTo: window.location.origin + window.location.pathname
+    }
+  });
+
+  if (error) {
+    showAuthError(error.message);
+  }
+});

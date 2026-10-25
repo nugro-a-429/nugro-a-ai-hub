@@ -1,4 +1,4 @@
-// app.js - Sound Share with In-App Visibility, Search, & RLS Table Sync
+// app.js - Fixed Audio Playback & Post-Upload Visibility Toggling
 
 const client = window.supabase.createClient(
   window.SUPABASE_URL,
@@ -20,9 +20,6 @@ const userEmailDisplay = document.getElementById('user-email-display');
 
 // App Elements
 const clipTitleInput = document.getElementById('clip-title');
-const clipVisibilitySelect = document.getElementById('clip-visibility');
-const sharedEmailsGroup = document.getElementById('shared-emails-group');
-const sharedEmailsInput = document.getElementById('shared-emails');
 const audioFileInput = document.getElementById('audio-file');
 const btnUpload = document.getElementById('btn-upload');
 const clipList = document.getElementById('clip-list');
@@ -52,15 +49,6 @@ function showAuthSuccess(msg) {
   authSuccess.textContent = msg;
   authSuccess.style.display = 'block';
 }
-
-// Toggle Visibility Inputs
-clipVisibilitySelect.addEventListener('change', () => {
-  if (clipVisibilitySelect.value === 'shared') {
-    sharedEmailsGroup.classList.remove('hidden');
-  } else {
-    sharedEmailsGroup.classList.add('hidden');
-  }
-});
 
 // Auth Handlers
 btnSignUp.addEventListener('click', async () => {
@@ -106,20 +94,18 @@ document.querySelectorAll('.tab-btn').forEach(button => {
   });
 });
 
-// Real-Time Title Search
+// Title Search Filter
 searchInput.addEventListener('input', () => {
   renderClips();
 });
 
-// Upload Audio & Save Metadata to Supabase Table
+// Upload Audio -> Automatically Private
 btnUpload.addEventListener('click', async () => {
   uploadAlert.style.display = 'none';
   uploadSuccess.style.display = 'none';
 
   const title = clipTitleInput.value.trim() || 'Untitled Clip';
   const file = audioFileInput.files[0];
-  const visibility = clipVisibilitySelect.value;
-  const sharedEmails = sharedEmailsInput.value.split(',').map(e => e.trim().toLowerCase()).filter(e => e);
 
   if (!file) {
     uploadAlert.textContent = 'Please select an audio file.';
@@ -141,13 +127,13 @@ btnUpload.addEventListener('click', async () => {
     return;
   }
 
-  // Insert Record into `clips` Table
+  // Insert into DB (Defaults to Private)
   const { error: dbError } = await client.from('clips').insert({
     user_id: currentUser.id,
     title: title,
     file_path: storagePath,
-    visibility: visibility,
-    shared_with: sharedEmails
+    visibility: 'private',
+    shared_with: []
   });
 
   btnUpload.disabled = false;
@@ -157,16 +143,15 @@ btnUpload.addEventListener('click', async () => {
     uploadAlert.textContent = dbError.message;
     uploadAlert.style.display = 'block';
   } else {
-    uploadSuccess.textContent = 'Audio clip uploaded and saved!';
+    uploadSuccess.textContent = 'Audio clip uploaded privately!';
     uploadSuccess.style.display = 'block';
     clipTitleInput.value = '';
     audioFileInput.value = '';
-    sharedEmailsInput.value = '';
     loadClips();
   }
 });
 
-// Fetch Clips from Database using RLS
+// Fetch Clips based on View
 async function loadClips() {
   if (!currentUser) return;
 
@@ -181,7 +166,6 @@ async function loadClips() {
   }
 
   const { data, error } = await query;
-
   if (error) {
     console.error(error);
     return;
@@ -191,7 +175,7 @@ async function loadClips() {
   renderClips();
 }
 
-// Render Clips Filtered by Search Title
+// Render Clips
 function renderClips() {
   const searchTerm = searchInput.value.trim().toLowerCase();
   clipList.innerHTML = '';
@@ -199,7 +183,7 @@ function renderClips() {
   const filtered = cachedClips.filter(clip => clip.title.toLowerCase().includes(searchTerm));
 
   if (filtered.length === 0) {
-    noClipsMsg.textContent = searchTerm ? 'No clips match your search.' : 'No clips found.';
+    noClipsMsg.textContent = searchTerm ? 'No clips match your search.' : 'No clips found in this view.';
     clipList.appendChild(noClipsMsg);
     noClipsMsg.style.display = 'block';
     return;
@@ -208,27 +192,55 @@ function renderClips() {
   noClipsMsg.style.display = 'none';
 
   filtered.forEach(clip => {
-    const publicUrl = `${window.SUPABASE_URL}/storage/v1/object/public/audio_clips/${clip.file_path}`;
+    // Generate clean Public URL from Supabase SDK
+    const { data: urlData } = client.storage.from('audio_clips').getPublicUrl(clip.file_path);
+    const publicUrl = urlData.publicUrl;
     const isOwner = clip.user_id === currentUser.id;
 
     const clipCard = document.createElement('div');
     clipCard.className = 'clip-item';
     clipCard.innerHTML = `
-      <div class="clip-header">
-        <div>
-          <span class="clip-title">${clip.title}</span>
-          <div class="clip-meta">
-            <span class="badge badge-${clip.visibility}">${clip.visibility}</span>
-            ${clip.shared_with && clip.shared_with.length > 0 ? `<span>Shared with ${clip.shared_with.length} user(s)</span>` : ''}
-          </div>
+      <div class="clip-top-row">
+        <span class="clip-title">${clip.title}</span>
+        <div class="clip-controls-row">
+          ${isOwner ? `
+            <select class="clip-select visibility-select" data-id="${clip.id}">
+              <option value="private" ${clip.visibility === 'private' ? 'selected' : ''}>🔒 Private</option>
+              <option value="public" ${clip.visibility === 'public' ? 'selected' : ''}>🌐 Public</option>
+              <option value="shared" ${clip.visibility === 'shared' ? 'selected' : ''}>👥 Shared</option>
+            </select>
+            <button class="btn-danger btn-sm btn-delete" data-id="${clip.id}" data-path="${clip.file_path}">🗑️ Delete</button>
+          ` : `
+            <span style="font-size:0.75rem; color:var(--text-muted);">${clip.visibility.toUpperCase()}</span>
+          `}
         </div>
-        ${isOwner ? `<button class="btn-danger btn-sm btn-delete" data-id="${clip.id}" data-path="${clip.file_path}">🗑️ Delete</button>` : ''}
       </div>
       <audio controls src="${publicUrl}"></audio>
     `;
 
-    // Delete Clip Handler
+    // Dynamic Visibility Change Listener
     if (isOwner) {
+      const visSelect = clipCard.querySelector('.visibility-select');
+      visSelect.addEventListener('change', async (e) => {
+        const newVis = e.target.value;
+        let sharedEmails = clip.shared_with || [];
+
+        if (newVis === 'shared') {
+          const emailInput = prompt('Enter recipient emails separated by commas:', sharedEmails.join(', '));
+          if (emailInput !== null) {
+            sharedEmails = emailInput.split(',').map(em => em.trim().toLowerCase()).filter(em => em);
+          }
+        }
+
+        await client.from('clips').update({
+          visibility: newVis,
+          shared_with: sharedEmails
+        }).eq('id', clip.id);
+
+        loadClips();
+      });
+
+      // Delete Handler
       clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
         const clipId = e.target.getAttribute('data-id');
         const filePath = e.target.getAttribute('data-path');

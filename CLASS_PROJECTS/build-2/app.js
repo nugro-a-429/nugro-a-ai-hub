@@ -1,4 +1,4 @@
-// app.js - Fixed Audio Playback & Post-Upload Visibility Toggling
+// app.js - Sound Share with Dual Output Routing, In-App Visibility, Search, & RLS
 
 const client = window.supabase.createClient(
   window.SUPABASE_URL,
@@ -28,6 +28,10 @@ const uploadAlert = document.getElementById('upload-alert');
 const uploadSuccess = document.getElementById('upload-success');
 const uploadContainer = document.getElementById('upload-container');
 const searchInput = document.getElementById('search-input');
+
+// Speaker Dropdowns
+const speakerMonitorSelect = document.getElementById('speaker-monitor');
+const speakerCableSelect = document.getElementById('speaker-cable');
 
 let currentUser = null;
 let currentView = 'personal';
@@ -99,7 +103,36 @@ searchInput.addEventListener('input', () => {
   renderClips();
 });
 
-// Upload Audio -> Automatically Private
+// Populate & Request Audio Devices (Headphones & Virtual Cables)
+async function initAudioDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+    console.warn("Audio output selection is not supported in this browser.");
+    return;
+  }
+
+  try {
+    // Request permission so browser reveals device labels
+    await navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      stream.getTracks().forEach(track => track.stop());
+    }).catch(() => {});
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+
+    speakerMonitorSelect.innerHTML = '<option value="default">Default Monitor Headphone</option>';
+    speakerCableSelect.innerHTML = '<option value="default">Default Speaker / Cable</option>';
+
+    audioOutputs.forEach((device) => {
+      const label = device.label || `Device (${device.deviceId.slice(0, 5)}...)`;
+      speakerMonitorSelect.add(new Option(label, device.deviceId));
+      speakerCableSelect.add(new Option(label, device.deviceId));
+    });
+  } catch (err) {
+    console.warn("Unable to enumerate audio devices:", err);
+  }
+}
+
+// Upload Audio -> Defaults to Private
 btnUpload.addEventListener('click', async () => {
   uploadAlert.style.display = 'none';
   uploadSuccess.style.display = 'none';
@@ -127,7 +160,6 @@ btnUpload.addEventListener('click', async () => {
     return;
   }
 
-  // Insert into DB (Defaults to Private)
   const { error: dbError } = await client.from('clips').insert({
     user_id: currentUser.id,
     title: title,
@@ -175,7 +207,7 @@ async function loadClips() {
   renderClips();
 }
 
-// Render Clips
+// Render Clips with Output Device Routing
 function renderClips() {
   const searchTerm = searchInput.value.trim().toLowerCase();
   clipList.innerHTML = '';
@@ -192,7 +224,6 @@ function renderClips() {
   noClipsMsg.style.display = 'none';
 
   filtered.forEach(clip => {
-    // Generate clean Public URL from Supabase SDK
     const { data: urlData } = client.storage.from('audio_clips').getPublicUrl(clip.file_path);
     const publicUrl = urlData.publicUrl;
     const isOwner = clip.user_id === currentUser.id;
@@ -215,10 +246,27 @@ function renderClips() {
           `}
         </div>
       </div>
-      <audio controls src="${publicUrl}"></audio>
+      <audio controls src="${publicUrl}" class="audio-player"></audio>
     `;
 
-    // Dynamic Visibility Change Listener
+    const audioElem = clipCard.querySelector('.audio-player');
+
+    // Route playback to Virtual Cable / Selected Device
+    async function applyDeviceRouting() {
+      const selectedDeviceId = speakerCableSelect.value;
+      if (typeof audioElem.setSinkId === 'function' && selectedDeviceId !== 'default') {
+        try {
+          await audioElem.setSinkId(selectedDeviceId);
+        } catch (err) {
+          console.warn('Failed to route audio to selected device:', err);
+        }
+      }
+    }
+
+    speakerCableSelect.addEventListener('change', applyDeviceRouting);
+    audioElem.addEventListener('play', applyDeviceRouting);
+
+    // Dynamic Visibility Listener
     if (isOwner) {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
@@ -240,7 +288,7 @@ function renderClips() {
         loadClips();
       });
 
-      // Delete Handler
+      // Delete Listener
       clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
         const clipId = e.target.getAttribute('data-id');
         const filePath = e.target.getAttribute('data-path');
@@ -264,6 +312,7 @@ client.auth.onAuthStateChange((event, session) => {
     authScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userEmailDisplay.textContent = session.user.email;
+    initAudioDevices();
     loadClips();
   } else {
     currentUser = null;

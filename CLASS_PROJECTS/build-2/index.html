@@ -99,7 +99,7 @@
       <button id="btn-signout" class="btn-secondary btn-sm">Sign Out</button>
     </div>
 
-    <!-- Dual Speakers -->
+    <!-- Dual Speakers Control Header -->
     <div class="speaker-controls">
       <div>
         <label for="speaker-monitor">🎧 Monitor Speaker</label>
@@ -109,6 +109,9 @@
         <label for="speaker-cable">🎙️ Virtual Cable</label>
         <select id="speaker-cable"><option value="default">Virtual Cable</option></select>
       </div>
+      <button type="button" onclick="requestAudioPermissions()" class="btn-secondary btn-sm" style="grid-column: span 2; margin-top: 0.5rem;">
+        🎙️ Enable Output Device Detection
+      </button>
     </div>
 
     <!-- Views -->

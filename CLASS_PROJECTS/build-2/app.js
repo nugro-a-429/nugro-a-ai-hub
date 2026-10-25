@@ -1,4 +1,4 @@
-// app.js - Sound Share with Dual Output Routing, In-App Visibility, Search, & RLS
+// app.js - Fixed Audio Playback & explicit Device Permission Prompt
 
 const client = window.supabase.createClient(
   window.SUPABASE_URL,
@@ -98,32 +98,35 @@ document.querySelectorAll('.tab-btn').forEach(button => {
   });
 });
 
-// Title Search Filter
+// Search
 searchInput.addEventListener('input', () => {
   renderClips();
 });
 
-// Populate & Request Audio Devices (Headphones & Virtual Cables)
-async function initAudioDevices() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-    console.warn("Audio output selection is not supported in this browser.");
-    return;
+// Explicit Permission Request for Audio Devices
+async function requestAudioPermissions() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(track => track.stop());
+    await populateAudioDevices();
+  } catch (err) {
+    alert("Audio device access was denied. Please allow microphone/audio permissions in your browser bar.");
   }
+}
+
+// Enumerate Audio Output Devices
+async function populateAudioDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
 
   try {
-    // Request permission so browser reveals device labels
-    await navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      stream.getTracks().forEach(track => track.stop());
-    }).catch(() => {});
-
     const devices = await navigator.mediaDevices.enumerateDevices();
     const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
 
-    speakerMonitorSelect.innerHTML = '<option value="default">Default Monitor Headphone</option>';
+    speakerMonitorSelect.innerHTML = '<option value="default">Default Monitor Speaker</option>';
     speakerCableSelect.innerHTML = '<option value="default">Default Speaker / Cable</option>';
 
     audioOutputs.forEach((device) => {
-      const label = device.label || `Device (${device.deviceId.slice(0, 5)}...)`;
+      const label = device.label || `Device (${device.deviceId.slice(0, 8)}...)`;
       speakerMonitorSelect.add(new Option(label, device.deviceId));
       speakerCableSelect.add(new Option(label, device.deviceId));
     });
@@ -199,7 +202,7 @@ async function loadClips() {
 
   const { data, error } = await query;
   if (error) {
-    console.error(error);
+    console.error("DB Query Error:", error);
     return;
   }
 
@@ -207,8 +210,8 @@ async function loadClips() {
   renderClips();
 }
 
-// Render Clips with Output Device Routing
-function renderClips() {
+// Render Clips with Output Device Routing & Signed Fallback URLs
+async function renderClips() {
   const searchTerm = searchInput.value.trim().toLowerCase();
   clipList.innerHTML = '';
 
@@ -223,9 +226,18 @@ function renderClips() {
 
   noClipsMsg.style.display = 'none';
 
-  filtered.forEach(clip => {
-    const { data: urlData } = client.storage.from('audio_clips').getPublicUrl(clip.file_path);
-    const publicUrl = urlData.publicUrl;
+  for (const clip of filtered) {
+    // Generate URL: try signed URL (60 mins expiry) to work even if bucket is private
+    let audioUrl = '';
+    const { data: signedData } = await client.storage.from('audio_clips').createSignedUrl(clip.file_path, 3600);
+    
+    if (signedData && signedData.signedUrl) {
+      audioUrl = signedData.signedUrl;
+    } else {
+      const { data: publicData } = client.storage.from('audio_clips').getPublicUrl(clip.file_path);
+      audioUrl = publicData.publicUrl;
+    }
+
     const isOwner = clip.user_id === currentUser.id;
 
     const clipCard = document.createElement('div');
@@ -246,27 +258,27 @@ function renderClips() {
           `}
         </div>
       </div>
-      <audio controls src="${publicUrl}" class="audio-player"></audio>
+      <audio controls src="${audioUrl}" class="audio-player" preload="metadata"></audio>
     `;
 
     const audioElem = clipCard.querySelector('.audio-player');
 
-    // Route playback to Virtual Cable / Selected Device
-    async function applyDeviceRouting() {
+    // Attach sink routing
+    async function applyRouting() {
       const selectedDeviceId = speakerCableSelect.value;
       if (typeof audioElem.setSinkId === 'function' && selectedDeviceId !== 'default') {
         try {
           await audioElem.setSinkId(selectedDeviceId);
         } catch (err) {
-          console.warn('Failed to route audio to selected device:', err);
+          console.warn('Routing failed:', err);
         }
       }
     }
 
-    speakerCableSelect.addEventListener('change', applyDeviceRouting);
-    audioElem.addEventListener('play', applyDeviceRouting);
+    audioElem.addEventListener('play', applyRouting);
+    speakerCableSelect.addEventListener('change', applyRouting);
 
-    // Dynamic Visibility Listener
+    // Dynamic Visibility Selector
     if (isOwner) {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
@@ -302,7 +314,7 @@ function renderClips() {
     }
 
     clipList.appendChild(clipCard);
-  });
+  }
 }
 
 // Auth Observer
@@ -312,7 +324,7 @@ client.auth.onAuthStateChange((event, session) => {
     authScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userEmailDisplay.textContent = session.user.email;
-    initAudioDevices();
+    populateAudioDevices();
     loadClips();
   } else {
     currentUser = null;

@@ -1,4 +1,4 @@
-// app.js - Sound Share Logic with Specific Validation & Error Messages
+// app.js - Sound Share with Routing, Views, Share & Delete
 
 const client = window.supabase.createClient(
   window.SUPABASE_URL,
@@ -26,8 +26,14 @@ const clipList = document.getElementById('clip-list');
 const noClipsMsg = document.getElementById('no-clips-msg');
 const uploadAlert = document.getElementById('upload-alert');
 const uploadSuccess = document.getElementById('upload-success');
+const uploadContainer = document.getElementById('upload-container');
+
+// Audio Device Elements
+const speakerMonitorSelect = document.getElementById('speaker-monitor');
+const speakerCableSelect = document.getElementById('speaker-cable');
 
 let currentUser = null;
+let currentView = 'personal';
 
 function clearAuthAlerts() {
   authAlert.style.display = 'none';
@@ -46,7 +52,7 @@ function showAuthSuccess(msg) {
   authSuccess.style.display = 'block';
 }
 
-// Password Validator: 8+ chars, Uppercase, Lowercase, Number
+// Password Validator
 function validatePassword(password) {
   const errors = [];
   if (password.length < 8) errors.push("at least 8 characters");
@@ -54,10 +60,7 @@ function validatePassword(password) {
   if (!/[a-z]/.test(password)) errors.push("a lowercase letter");
   if (!/[0-9]/.test(password)) errors.push("a number");
 
-  if (errors.length > 0) {
-    return `Password missing: ${errors.join(', ')}.`;
-  }
-  return null;
+  return errors.length > 0 ? `Password missing: ${errors.join(', ')}.` : null;
 }
 
 // 1. SIGN UP
@@ -66,34 +69,17 @@ btnSignUp.addEventListener('click', async () => {
   const email = emailInput.value.trim();
   const password = passwordInput.value;
 
-  if (!email || !password) {
-    showAuthError('Please enter both email and password.');
-    return;
-  }
+  if (!email || !password) return showAuthError('Please enter email and password.');
 
-  // Validate Password Criteria
   const pwdError = validatePassword(password);
-  if (pwdError) {
-    showAuthError(pwdError);
-    return;
-  }
+  if (pwdError) return showAuthError(pwdError);
 
   const { data, error } = await client.auth.signUp({ email, password });
 
   if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes('already registered') || msg.includes('user already exists')) {
-      showAuthError('You already have an account.');
-    } else {
-      showAuthError(error.message);
-    }
+    showAuthError(error.message.includes('already registered') ? 'You already have an account.' : error.message);
   } else if (data.user) {
-    // If identity array is empty, user exists in Supabase
-    if (data.user.identities && data.user.identities.length === 0) {
-      showAuthError('You already have an account.');
-    } else {
-      showAuthSuccess('Account created successfully!');
-    }
+    showAuthSuccess('Account created successfully!');
   }
 });
 
@@ -103,21 +89,10 @@ btnSignIn.addEventListener('click', async () => {
   const email = emailInput.value.trim();
   const password = passwordInput.value;
 
-  if (!email || !password) {
-    showAuthError('Please enter both email and password.');
-    return;
-  }
+  if (!email || !password) return showAuthError('Please enter email and password.');
 
   const { error } = await client.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    const msg = error.message.toLowerCase();
-    if (msg.includes('invalid login credentials') || msg.includes('user not found')) {
-      showAuthError("You don't have an account or password was incorrect.");
-    } else {
-      showAuthError(error.message);
-    }
-  }
+  if (error) showAuthError("Invalid credentials or user not found.");
 });
 
 // 3. SIGN IN WITH GITHUB
@@ -125,14 +100,9 @@ btnGitHub.addEventListener('click', async () => {
   clearAuthAlerts();
   const { error } = await client.auth.signInWithOAuth({
     provider: 'github',
-    options: {
-      redirectTo: window.location.origin + window.location.pathname
-    }
+    options: { redirectTo: window.location.origin + window.location.pathname }
   });
-
-  if (error) {
-    showAuthError(error.message);
-  }
+  if (error) showAuthError(error.message);
 });
 
 // 4. SIGN OUT
@@ -140,16 +110,48 @@ btnSignOut.addEventListener('click', async () => {
   await client.auth.signOut();
 });
 
+// Tab Switcher
+document.querySelectorAll('.tab-btn').forEach(button => {
+  button.addEventListener('click', (e) => {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    e.target.classList.add('active');
+    currentView = e.target.getAttribute('data-view');
+
+    uploadContainer.style.display = currentView === 'personal' ? 'block' : 'none';
+    loadClips();
+  });
+});
+
+// Populate Dual Speaker Devices
+async function setupAudioDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+
+    speakerMonitorSelect.innerHTML = '';
+    speakerCableSelect.innerHTML = '';
+
+    audioOutputs.forEach((device, idx) => {
+      const opt1 = new Option(device.label || `Speaker ${idx + 1}`, device.deviceId);
+      const opt2 = new Option(device.label || `Virtual Cable ${idx + 1}`, device.deviceId);
+      speakerMonitorSelect.add(opt1);
+      speakerCableSelect.add(opt2);
+    });
+  } catch (err) {
+    console.warn("Audio device enumeration unavailable:", err);
+  }
+}
+
 // Upload Audio
 btnUpload.addEventListener('click', async () => {
   uploadAlert.style.display = 'none';
   uploadSuccess.style.display = 'none';
 
-  const title = clipTitleInput.value.trim() || 'Untitled Clip';
   const file = audioFileInput.files[0];
-
   if (!file) {
-    uploadAlert.textContent = 'Please select an audio file to upload.';
+    uploadAlert.textContent = 'Please select an audio file.';
     uploadAlert.style.display = 'block';
     return;
   }
@@ -164,10 +166,7 @@ btnUpload.addEventListener('click', async () => {
   btnUpload.textContent = 'Uploading...';
 
   const filePath = `${currentUser.id}/${Date.now()}_${file.name}`;
-
-  const { data, error } = await client.storage
-    .from('audio_clips')
-    .upload(filePath, file);
+  const { error } = await client.storage.from('audio_clips').upload(filePath, file);
 
   btnUpload.disabled = false;
   btnUpload.textContent = 'Upload Audio';
@@ -180,21 +179,29 @@ btnUpload.addEventListener('click', async () => {
     uploadSuccess.style.display = 'block';
     clipTitleInput.value = '';
     audioFileInput.value = '';
-    loadUserClips();
+    loadClips();
   }
 });
 
 // Fetch Audio Clips
-async function loadUserClips() {
+async function loadClips() {
   if (!currentUser) return;
+
+  clipList.innerHTML = '';
+
+  if (currentView === 'shared' || currentView === 'public') {
+    noClipsMsg.textContent = `No clips in ${currentView === 'shared' ? 'Shared With You' : 'Public Feed'} yet.`;
+    clipList.appendChild(noClipsMsg);
+    noClipsMsg.style.display = 'block';
+    return;
+  }
 
   const { data, error } = await client.storage
     .from('audio_clips')
     .list(currentUser.id, { sortBy: { column: 'created_at', order: 'desc' } });
 
-  clipList.innerHTML = '';
-
   if (error || !data || data.length === 0) {
+    noClipsMsg.textContent = 'No audio clips uploaded yet.';
     clipList.appendChild(noClipsMsg);
     noClipsMsg.style.display = 'block';
     return;
@@ -204,13 +211,45 @@ async function loadUserClips() {
 
   data.forEach((file) => {
     const publicUrl = `${window.SUPABASE_URL}/storage/v1/object/public/audio_clips/${currentUser.id}/${file.name}`;
+    const cleanName = file.name.split('_').slice(1).join('_') || file.name;
 
     const clipCard = document.createElement('div');
     clipCard.className = 'clip-item';
     clipCard.innerHTML = `
-      <h4>${file.name.split('_').slice(1).join('_') || file.name}</h4>
-      <audio controls src="${publicUrl}"></audio>
+      <div class="clip-header">
+        <span class="clip-title">${cleanName}</span>
+        <div class="clip-actions">
+          <button class="btn-secondary btn-sm btn-share" data-url="${publicUrl}">🔗 Share</button>
+          <button class="btn-danger btn-sm btn-delete" data-filename="${file.name}">🗑️ Delete</button>
+        </div>
+      </div>
+      <audio controls src="${publicUrl}" class="audio-player"></audio>
     `;
+
+    // Share Handler
+    clipCard.querySelector('.btn-share').addEventListener('click', (e) => {
+      const url = e.target.getAttribute('data-url');
+      navigator.clipboard.writeText(url);
+      alert('Copied direct audio link to clipboard!');
+    });
+
+    // Delete Handler
+    clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
+      const fileName = e.target.getAttribute('data-filename');
+      if (confirm(`Are you sure you want to delete "${cleanName}"?`)) {
+        await client.storage.from('audio_clips').remove([`${currentUser.id}/${fileName}`]);
+        loadClips();
+      }
+    });
+
+    // Device Sink Handler (Set Output Speaker if supported)
+    const audioElem = clipCard.querySelector('.audio-player');
+    speakerCableSelect.addEventListener('change', () => {
+      if (typeof audioElem.setSinkId === 'function') {
+        audioElem.setSinkId(speakerCableSelect.value).catch(console.error);
+      }
+    });
+
     clipList.appendChild(clipCard);
   });
 }
@@ -222,7 +261,8 @@ client.auth.onAuthStateChange((event, session) => {
     authScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userEmailDisplay.textContent = session.user.email;
-    loadUserClips();
+    setupAudioDevices();
+    loadClips();
   } else {
     currentUser = null;
     appScreen.classList.add('hidden');

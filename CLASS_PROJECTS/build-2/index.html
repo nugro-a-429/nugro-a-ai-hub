@@ -6,15 +6,18 @@
   <title>Sound Share</title>
   <style>
     :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
+      --bg-color: #0b0f19;
+      --card-bg: #151d30;
+      --card-inner: #0f172a;
       --accent: #6366f1;
       --accent-hover: #4f46e5;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --danger: #ef4444;
+      --danger-hover: #dc2626;
       --success: #10b981;
-      --border: #334155;
+      --border: #1e293b;
+      --border-light: #334155;
     }
 
     * {
@@ -31,18 +34,18 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 1rem;
+      justify-content: flex-start;
+      padding: 2rem 1rem;
     }
 
     .container {
       width: 100%;
-      max-width: 480px;
+      max-width: 680px;
       background-color: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 2rem;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
     .brand {
@@ -51,13 +54,14 @@
     }
 
     .brand h1 {
-      font-size: 1.75rem;
+      font-size: 2rem;
       color: var(--text-main);
+      letter-spacing: -0.025em;
     }
 
     .brand p {
       color: var(--text-muted);
-      font-size: 0.875rem;
+      font-size: 0.9rem;
       margin-top: 0.25rem;
     }
 
@@ -67,24 +71,32 @@
 
     label {
       display: block;
-      font-size: 0.875rem;
-      font-weight: 500;
+      font-size: 0.85rem;
+      font-weight: 600;
       margin-bottom: 0.375rem;
       color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     input[type="email"],
     input[type="password"],
     input[type="text"],
-    input[type="file"] {
+    input[type="file"],
+    select {
       width: 100%;
       padding: 0.75rem;
-      background-color: #0f172a;
-      border: 1px solid var(--border);
-      border-radius: 6px;
+      background-color: var(--card-inner);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
       color: var(--text-main);
       font-size: 0.95rem;
       outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
     }
 
     .btn-group {
@@ -95,23 +107,29 @@
 
     button {
       flex: 1;
-      padding: 0.75rem;
-      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
       border: none;
       font-weight: 600;
       font-size: 0.9rem;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
     .btn-primary { background-color: var(--accent); color: white; }
     .btn-primary:hover { background-color: var(--accent-hover); }
-    .btn-secondary { background-color: transparent; border: 1px solid var(--border); color: var(--text-main); }
-    .btn-danger { background-color: var(--danger); color: white; margin-top: 1.5rem; width: 100%; }
+    .btn-secondary { background-color: transparent; border: 1px solid var(--border-light); color: var(--text-main); }
+    .btn-secondary:hover { background-color: var(--border); }
+    .btn-danger { background-color: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
+    .btn-danger:hover { background-color: var(--danger); color: white; }
 
     .alert {
-      padding: 0.75rem;
-      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
       font-size: 0.85rem;
       margin-bottom: 1rem;
       display: none;
@@ -123,18 +141,58 @@
     .hidden { display: none !important; }
 
     .user-badge {
-      background-color: #0f172a;
-      padding: 0.75rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+      background-color: var(--card-inner);
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
       margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Views / Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .tab-btn.active {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    /* Dual Speaker Controls */
+    .speaker-controls {
+      background-color: var(--card-inner);
+      padding: 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      margin-bottom: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
     }
 
     .upload-section {
-      background-color: #0f172a;
+      background-color: var(--card-inner);
       padding: 1.25rem;
-      border-radius: 8px;
-      border: 1px dashed var(--border);
+      border-radius: 10px;
+      border: 1px dashed var(--border-light);
       margin-bottom: 1.5rem;
     }
 
@@ -146,20 +204,40 @@
     }
 
     .clip-item {
-      background-color: #0f172a;
-      padding: 1rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+      background-color: var(--card-inner);
+      padding: 1.25rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
-    .clip-item h4 {
-      font-size: 0.95rem;
-      margin-bottom: 0.5rem;
+    .clip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .clip-title {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .clip-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      border-radius: 6px;
     }
 
     audio {
       width: 100%;
-      height: 36px;
+      height: 40px;
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -196,7 +274,7 @@
         or
       </div>
 
-      <button type="button" id="btn-github" class="btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+      <button type="button" id="btn-github" class="btn-secondary" style="width: 100%;">
         <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
         </svg>
@@ -209,23 +287,49 @@
   <div id="app-screen" class="container hidden">
     <div class="brand">
       <h1>🔊 Sound Share</h1>
-      <p>Your audio vault is active.</p>
+      <p>Audio Vault & Routing Control</p>
     </div>
 
     <div class="user-badge">
-      <p style="font-size:0.8rem; color:var(--text-muted);">Signed in as:</p>
-      <strong id="user-email-display" style="color:var(--accent);">---</strong>
+      <div>
+        <p style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Signed in as</p>
+        <strong id="user-email-display" style="color:var(--accent);">---</strong>
+      </div>
+      <button id="btn-signout" class="btn-secondary btn-sm">Sign Out</button>
     </div>
 
-    <!-- Upload Form -->
-    <div class="upload-section">
+    <!-- Dual Audio Routing Controls -->
+    <div class="speaker-controls">
+      <div>
+        <label for="speaker-monitor">🎧 Monitor Speaker</label>
+        <select id="speaker-monitor">
+          <option value="default">Default Speaker</option>
+        </select>
+      </div>
+      <div>
+        <label for="speaker-cable">🎙️ Virtual Cable (Output)</label>
+        <select id="speaker-cable">
+          <option value="default">Virtual Audio Cable</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Navigation Views/Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-view="personal">Personal Vault</button>
+      <button class="tab-btn" data-view="shared">Shared With You</button>
+      <button class="tab-btn" data-view="public">Public Feed</button>
+    </div>
+
+    <!-- Upload Form (Shown in Personal Vault) -->
+    <div id="upload-container" class="upload-section">
       <h3 style="font-size:1rem; margin-bottom:0.75rem;">Upload New Sound</h3>
       <div id="upload-alert" class="alert alert-danger"></div>
       <div id="upload-success" class="alert alert-success"></div>
 
       <div class="form-group">
         <label for="clip-title">Title / Label</label>
-        <input type="text" id="clip-title" placeholder="e.g., Cool Beat Drop" />
+        <input type="text" id="clip-title" placeholder="e.g., Soundboard Effect 1" />
       </div>
 
       <div class="form-group">
@@ -239,15 +343,12 @@
     </div>
 
     <!-- Clips Section -->
-    <h3 style="font-size:1rem; margin-bottom:0.5rem;">Your Sound Library</h3>
     <div id="clip-list" class="clip-list">
-      <p style="color:var(--text-muted); font-size:0.85rem;" id="no-clips-msg">No audio clips uploaded yet.</p>
+      <p style="color:var(--text-muted); font-size:0.85rem;" id="no-clips-msg">No audio clips available.</p>
     </div>
-
-    <button id="btn-signout" class="btn-danger">Sign Out</button>
   </div>
 
   <script src="config.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

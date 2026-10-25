@@ -1,11 +1,11 @@
-// app.js - Fixed Audio Playback & explicit Device Permission Prompt
+// app.js - Sound Share Complete Script
 
 const client = window.supabase.createClient(
   window.SUPABASE_URL,
   window.SUPABASE_ANON_KEY
 );
 
-// Auth Elements
+// UI Elements
 const authScreen = document.getElementById('auth-screen');
 const appScreen = document.getElementById('app-screen');
 const emailInput = document.getElementById('email');
@@ -18,7 +18,6 @@ const authAlert = document.getElementById('auth-alert');
 const authSuccess = document.getElementById('auth-success');
 const userEmailDisplay = document.getElementById('user-email-display');
 
-// App Elements
 const clipTitleInput = document.getElementById('clip-title');
 const audioFileInput = document.getElementById('audio-file');
 const btnUpload = document.getElementById('btn-upload');
@@ -29,14 +28,15 @@ const uploadSuccess = document.getElementById('upload-success');
 const uploadContainer = document.getElementById('upload-container');
 const searchInput = document.getElementById('search-input');
 
-// Speaker Dropdowns
 const speakerMonitorSelect = document.getElementById('speaker-monitor');
 const speakerCableSelect = document.getElementById('speaker-cable');
+const btnRequestPermission = document.getElementById('btn-request-permission');
 
 let currentUser = null;
 let currentView = 'personal';
 let cachedClips = [];
 
+// Helper Alerts
 function clearAuthAlerts() {
   authAlert.style.display = 'none';
   authSuccess.style.display = 'none';
@@ -87,7 +87,7 @@ btnSignOut.addEventListener('click', async () => {
   await client.auth.signOut();
 });
 
-// Navigation Views
+// Tab Navigation
 document.querySelectorAll('.tab-btn').forEach(button => {
   button.addEventListener('click', (e) => {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -98,23 +98,26 @@ document.querySelectorAll('.tab-btn').forEach(button => {
   });
 });
 
-// Search
+// Search Filter
 searchInput.addEventListener('input', () => {
   renderClips();
 });
 
-// Explicit Permission Request for Audio Devices
+// Device Routing Setup
+if (btnRequestPermission) {
+  btnRequestPermission.addEventListener('click', requestAudioPermissions);
+}
+
 async function requestAudioPermissions() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach(track => track.stop());
     await populateAudioDevices();
   } catch (err) {
-    alert("Audio device access was denied. Please allow microphone/audio permissions in your browser bar.");
+    alert("Audio device access was denied. Please grant microphone permissions in your browser bar.");
   }
 }
 
-// Enumerate Audio Output Devices
 async function populateAudioDevices() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
 
@@ -122,7 +125,7 @@ async function populateAudioDevices() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
 
-    speakerMonitorSelect.innerHTML = '<option value="default">Default Monitor Speaker</option>';
+    speakerMonitorSelect.innerHTML = '<option value="default">Default Speaker</option>';
     speakerCableSelect.innerHTML = '<option value="default">Default Speaker / Cable</option>';
 
     audioOutputs.forEach((device) => {
@@ -135,7 +138,17 @@ async function populateAudioDevices() {
   }
 }
 
-// Upload Audio -> Defaults to Private
+async function routeAudioElement(audioElem, deviceId) {
+  if (typeof audioElem.setSinkId === 'function' && deviceId && deviceId !== 'default') {
+    try {
+      await audioElem.setSinkId(deviceId);
+    } catch (err) {
+      console.warn('setSinkId routing failed:', err);
+    }
+  }
+}
+
+// Upload Audio
 btnUpload.addEventListener('click', async () => {
   uploadAlert.style.display = 'none';
   uploadSuccess.style.display = 'none';
@@ -186,7 +199,7 @@ btnUpload.addEventListener('click', async () => {
   }
 });
 
-// Fetch Clips based on View
+// Fetch Clips
 async function loadClips() {
   if (!currentUser) return;
 
@@ -210,7 +223,7 @@ async function loadClips() {
   renderClips();
 }
 
-// Render Clips with Output Device Routing & Signed Fallback URLs
+// Render Clip Cards
 async function renderClips() {
   const searchTerm = searchInput.value.trim().toLowerCase();
   clipList.innerHTML = '';
@@ -227,10 +240,11 @@ async function renderClips() {
   noClipsMsg.style.display = 'none';
 
   for (const clip of filtered) {
-    // Generate URL: try signed URL (60 mins expiry) to work even if bucket is private
     let audioUrl = '';
-    const { data: signedData } = await client.storage.from('audio_clips').createSignedUrl(clip.file_path, 3600);
     
+    // Signed URL generation for private access support
+    const { data: signedData } = await client.storage.from('audio_clips').createSignedUrl(clip.file_path, 3600);
+
     if (signedData && signedData.signedUrl) {
       audioUrl = signedData.signedUrl;
     } else {
@@ -263,22 +277,12 @@ async function renderClips() {
 
     const audioElem = clipCard.querySelector('.audio-player');
 
-    // Attach sink routing
-    async function applyRouting() {
-      const selectedDeviceId = speakerCableSelect.value;
-      if (typeof audioElem.setSinkId === 'function' && selectedDeviceId !== 'default') {
-        try {
-          await audioElem.setSinkId(selectedDeviceId);
-        } catch (err) {
-          console.warn('Routing failed:', err);
-        }
-      }
-    }
-
+    // Route audio to selected device on play or change
+    const applyRouting = () => routeAudioElement(audioElem, speakerCableSelect.value);
     audioElem.addEventListener('play', applyRouting);
     speakerCableSelect.addEventListener('change', applyRouting);
 
-    // Dynamic Visibility Selector
+    // Dynamic Visibility Handling
     if (isOwner) {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
@@ -289,18 +293,28 @@ async function renderClips() {
           const emailInput = prompt('Enter recipient emails separated by commas:', sharedEmails.join(', '));
           if (emailInput !== null) {
             sharedEmails = emailInput.split(',').map(em => em.trim().toLowerCase()).filter(em => em);
+          } else {
+            e.target.value = clip.visibility;
+            return;
           }
+        } else {
+          sharedEmails = [];
         }
 
-        await client.from('clips').update({
+        const { error } = await client.from('clips').update({
           visibility: newVis,
           shared_with: sharedEmails
         }).eq('id', clip.id);
 
-        loadClips();
+        if (error) {
+          alert(`Update failed: ${error.message}`);
+          e.target.value = clip.visibility;
+        } else {
+          loadClips();
+        }
       });
 
-      // Delete Listener
+      // Delete Handling
       clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
         const clipId = e.target.getAttribute('data-id');
         const filePath = e.target.getAttribute('data-path');
@@ -317,7 +331,7 @@ async function renderClips() {
   }
 }
 
-// Auth Observer
+// Auth State Observer
 client.auth.onAuthStateChange((event, session) => {
   if (session && session.user) {
     currentUser = session.user;

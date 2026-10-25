@@ -1,4 +1,4 @@
-// app.js - Sound Share with Routing, Views, Share & Delete
+// app.js - Sound Share with In-App Visibility, Search, & RLS Table Sync
 
 const client = window.supabase.createClient(
   window.SUPABASE_URL,
@@ -18,8 +18,11 @@ const authAlert = document.getElementById('auth-alert');
 const authSuccess = document.getElementById('auth-success');
 const userEmailDisplay = document.getElementById('user-email-display');
 
-// Sound App Elements
+// App Elements
 const clipTitleInput = document.getElementById('clip-title');
+const clipVisibilitySelect = document.getElementById('clip-visibility');
+const sharedEmailsGroup = document.getElementById('shared-emails-group');
+const sharedEmailsInput = document.getElementById('shared-emails');
 const audioFileInput = document.getElementById('audio-file');
 const btnUpload = document.getElementById('btn-upload');
 const clipList = document.getElementById('clip-list');
@@ -27,13 +30,11 @@ const noClipsMsg = document.getElementById('no-clips-msg');
 const uploadAlert = document.getElementById('upload-alert');
 const uploadSuccess = document.getElementById('upload-success');
 const uploadContainer = document.getElementById('upload-container');
-
-// Audio Device Elements
-const speakerMonitorSelect = document.getElementById('speaker-monitor');
-const speakerCableSelect = document.getElementById('speaker-cable');
+const searchInput = document.getElementById('search-input');
 
 let currentUser = null;
 let currentView = 'personal';
+let cachedClips = [];
 
 function clearAuthAlerts() {
   authAlert.style.display = 'none';
@@ -52,50 +53,35 @@ function showAuthSuccess(msg) {
   authSuccess.style.display = 'block';
 }
 
-// Password Validator
-function validatePassword(password) {
-  const errors = [];
-  if (password.length < 8) errors.push("at least 8 characters");
-  if (!/[A-Z]/.test(password)) errors.push("an uppercase letter");
-  if (!/[a-z]/.test(password)) errors.push("a lowercase letter");
-  if (!/[0-9]/.test(password)) errors.push("a number");
+// Toggle Visibility Inputs
+clipVisibilitySelect.addEventListener('change', () => {
+  if (clipVisibilitySelect.value === 'shared') {
+    sharedEmailsGroup.classList.remove('hidden');
+  } else {
+    sharedEmailsGroup.classList.add('hidden');
+  }
+});
 
-  return errors.length > 0 ? `Password missing: ${errors.join(', ')}.` : null;
-}
-
-// 1. SIGN UP
+// Auth Handlers
 btnSignUp.addEventListener('click', async () => {
   clearAuthAlerts();
   const email = emailInput.value.trim();
   const password = passwordInput.value;
-
   if (!email || !password) return showAuthError('Please enter email and password.');
-
-  const pwdError = validatePassword(password);
-  if (pwdError) return showAuthError(pwdError);
-
   const { data, error } = await client.auth.signUp({ email, password });
-
-  if (error) {
-    showAuthError(error.message.includes('already registered') ? 'You already have an account.' : error.message);
-  } else if (data.user) {
-    showAuthSuccess('Account created successfully!');
-  }
+  if (error) showAuthError(error.message);
+  else if (data.user) showAuthSuccess('Account created successfully!');
 });
 
-// 2. SIGN IN
 btnSignIn.addEventListener('click', async () => {
   clearAuthAlerts();
   const email = emailInput.value.trim();
   const password = passwordInput.value;
-
   if (!email || !password) return showAuthError('Please enter email and password.');
-
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) showAuthError("Invalid credentials or user not found.");
 });
 
-// 3. SIGN IN WITH GITHUB
 btnGitHub.addEventListener('click', async () => {
   clearAuthAlerts();
   const { error } = await client.auth.signInWithOAuth({
@@ -105,59 +91,38 @@ btnGitHub.addEventListener('click', async () => {
   if (error) showAuthError(error.message);
 });
 
-// 4. SIGN OUT
 btnSignOut.addEventListener('click', async () => {
   await client.auth.signOut();
 });
 
-// Tab Switcher
+// Navigation Views
 document.querySelectorAll('.tab-btn').forEach(button => {
   button.addEventListener('click', (e) => {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     e.target.classList.add('active');
     currentView = e.target.getAttribute('data-view');
-
     uploadContainer.style.display = currentView === 'personal' ? 'block' : 'none';
     loadClips();
   });
 });
 
-// Populate Dual Speaker Devices
-async function setupAudioDevices() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+// Real-Time Title Search
+searchInput.addEventListener('input', () => {
+  renderClips();
+});
 
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
-
-    speakerMonitorSelect.innerHTML = '';
-    speakerCableSelect.innerHTML = '';
-
-    audioOutputs.forEach((device, idx) => {
-      const opt1 = new Option(device.label || `Speaker ${idx + 1}`, device.deviceId);
-      const opt2 = new Option(device.label || `Virtual Cable ${idx + 1}`, device.deviceId);
-      speakerMonitorSelect.add(opt1);
-      speakerCableSelect.add(opt2);
-    });
-  } catch (err) {
-    console.warn("Audio device enumeration unavailable:", err);
-  }
-}
-
-// Upload Audio
+// Upload Audio & Save Metadata to Supabase Table
 btnUpload.addEventListener('click', async () => {
   uploadAlert.style.display = 'none';
   uploadSuccess.style.display = 'none';
 
+  const title = clipTitleInput.value.trim() || 'Untitled Clip';
   const file = audioFileInput.files[0];
+  const visibility = clipVisibilitySelect.value;
+  const sharedEmails = sharedEmailsInput.value.split(',').map(e => e.trim().toLowerCase()).filter(e => e);
+
   if (!file) {
     uploadAlert.textContent = 'Please select an audio file.';
-    uploadAlert.style.display = 'block';
-    return;
-  }
-
-  if (file.size > 20 * 1024 * 1024) {
-    uploadAlert.textContent = 'File must be under 20MB.';
     uploadAlert.style.display = 'block';
     return;
   }
@@ -165,43 +130,76 @@ btnUpload.addEventListener('click', async () => {
   btnUpload.disabled = true;
   btnUpload.textContent = 'Uploading...';
 
-  const filePath = `${currentUser.id}/${Date.now()}_${file.name}`;
-  const { error } = await client.storage.from('audio_clips').upload(filePath, file);
+  const storagePath = `${currentUser.id}/${Date.now()}_${file.name}`;
+  const { error: storageError } = await client.storage.from('audio_clips').upload(storagePath, file);
+
+  if (storageError) {
+    btnUpload.disabled = false;
+    btnUpload.textContent = 'Upload Audio';
+    uploadAlert.textContent = storageError.message;
+    uploadAlert.style.display = 'block';
+    return;
+  }
+
+  // Insert Record into `clips` Table
+  const { error: dbError } = await client.from('clips').insert({
+    user_id: currentUser.id,
+    title: title,
+    file_path: storagePath,
+    visibility: visibility,
+    shared_with: sharedEmails
+  });
 
   btnUpload.disabled = false;
   btnUpload.textContent = 'Upload Audio';
 
-  if (error) {
-    uploadAlert.textContent = error.message;
+  if (dbError) {
+    uploadAlert.textContent = dbError.message;
     uploadAlert.style.display = 'block';
   } else {
-    uploadSuccess.textContent = 'Audio uploaded successfully!';
+    uploadSuccess.textContent = 'Audio clip uploaded and saved!';
     uploadSuccess.style.display = 'block';
     clipTitleInput.value = '';
     audioFileInput.value = '';
+    sharedEmailsInput.value = '';
     loadClips();
   }
 });
 
-// Fetch Audio Clips
+// Fetch Clips from Database using RLS
 async function loadClips() {
   if (!currentUser) return;
 
-  clipList.innerHTML = '';
+  let query = client.from('clips').select('*').order('created_at', { ascending: false });
 
-  if (currentView === 'shared' || currentView === 'public') {
-    noClipsMsg.textContent = `No clips in ${currentView === 'shared' ? 'Shared With You' : 'Public Feed'} yet.`;
-    clipList.appendChild(noClipsMsg);
-    noClipsMsg.style.display = 'block';
+  if (currentView === 'personal') {
+    query = query.eq('user_id', currentUser.id);
+  } else if (currentView === 'shared') {
+    query = query.eq('visibility', 'shared').neq('user_id', currentUser.id);
+  } else if (currentView === 'public') {
+    query = query.eq('visibility', 'public');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
     return;
   }
 
-  const { data, error } = await client.storage
-    .from('audio_clips')
-    .list(currentUser.id, { sortBy: { column: 'created_at', order: 'desc' } });
+  cachedClips = data || [];
+  renderClips();
+}
 
-  if (error || !data || data.length === 0) {
-    noClipsMsg.textContent = 'No audio clips uploaded yet.';
+// Render Clips Filtered by Search Title
+function renderClips() {
+  const searchTerm = searchInput.value.trim().toLowerCase();
+  clipList.innerHTML = '';
+
+  const filtered = cachedClips.filter(clip => clip.title.toLowerCase().includes(searchTerm));
+
+  if (filtered.length === 0) {
+    noClipsMsg.textContent = searchTerm ? 'No clips match your search.' : 'No clips found.';
     clipList.appendChild(noClipsMsg);
     noClipsMsg.style.display = 'block';
     return;
@@ -209,46 +207,39 @@ async function loadClips() {
 
   noClipsMsg.style.display = 'none';
 
-  data.forEach((file) => {
-    const publicUrl = `${window.SUPABASE_URL}/storage/v1/object/public/audio_clips/${currentUser.id}/${file.name}`;
-    const cleanName = file.name.split('_').slice(1).join('_') || file.name;
+  filtered.forEach(clip => {
+    const publicUrl = `${window.SUPABASE_URL}/storage/v1/object/public/audio_clips/${clip.file_path}`;
+    const isOwner = clip.user_id === currentUser.id;
 
     const clipCard = document.createElement('div');
     clipCard.className = 'clip-item';
     clipCard.innerHTML = `
       <div class="clip-header">
-        <span class="clip-title">${cleanName}</span>
-        <div class="clip-actions">
-          <button class="btn-secondary btn-sm btn-share" data-url="${publicUrl}">🔗 Share</button>
-          <button class="btn-danger btn-sm btn-delete" data-filename="${file.name}">🗑️ Delete</button>
+        <div>
+          <span class="clip-title">${clip.title}</span>
+          <div class="clip-meta">
+            <span class="badge badge-${clip.visibility}">${clip.visibility}</span>
+            ${clip.shared_with && clip.shared_with.length > 0 ? `<span>Shared with ${clip.shared_with.length} user(s)</span>` : ''}
+          </div>
         </div>
+        ${isOwner ? `<button class="btn-danger btn-sm btn-delete" data-id="${clip.id}" data-path="${clip.file_path}">🗑️ Delete</button>` : ''}
       </div>
-      <audio controls src="${publicUrl}" class="audio-player"></audio>
+      <audio controls src="${publicUrl}"></audio>
     `;
 
-    // Share Handler
-    clipCard.querySelector('.btn-share').addEventListener('click', (e) => {
-      const url = e.target.getAttribute('data-url');
-      navigator.clipboard.writeText(url);
-      alert('Copied direct audio link to clipboard!');
-    });
+    // Delete Clip Handler
+    if (isOwner) {
+      clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
+        const clipId = e.target.getAttribute('data-id');
+        const filePath = e.target.getAttribute('data-path');
 
-    // Delete Handler
-    clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
-      const fileName = e.target.getAttribute('data-filename');
-      if (confirm(`Are you sure you want to delete "${cleanName}"?`)) {
-        await client.storage.from('audio_clips').remove([`${currentUser.id}/${fileName}`]);
-        loadClips();
-      }
-    });
-
-    // Device Sink Handler (Set Output Speaker if supported)
-    const audioElem = clipCard.querySelector('.audio-player');
-    speakerCableSelect.addEventListener('change', () => {
-      if (typeof audioElem.setSinkId === 'function') {
-        audioElem.setSinkId(speakerCableSelect.value).catch(console.error);
-      }
-    });
+        if (confirm('Are you sure you want to delete this clip?')) {
+          await client.from('clips').delete().eq('id', clipId);
+          await client.storage.from('audio_clips').remove([filePath]);
+          loadClips();
+        }
+      });
+    }
 
     clipList.appendChild(clipCard);
   });
@@ -261,7 +252,6 @@ client.auth.onAuthStateChange((event, session) => {
     authScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userEmailDisplay.textContent = session.user.email;
-    setupAudioDevices();
     loadClips();
   } else {
     currentUser = null;

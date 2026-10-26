@@ -44,7 +44,7 @@
     .tab-btn { background: none; border: none; color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
     .tab-btn.active { background-color: var(--accent); color: white; }
     .speaker-controls { background-color: var(--card-inner); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .upload-section, .search-section { background-color: var(--card-inner); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; }
+    .upload-section, .search-section, .password-section { background-color: var(--card-inner); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; }
     .clip-list { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
     .clip-item { background-color: var(--card-inner); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 0.75rem; }
     .clip-top-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
@@ -73,7 +73,7 @@
       </div>
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" placeholder="••••••••••••" required />
+        <input type="password" id="password" placeholder="Min 8 chars (1 upper, 1 lower, 1 number)" required />
       </div>
       <div class="btn-group">
         <button type="button" id="btn-signin" class="btn-primary">Sign In</button>
@@ -82,6 +82,20 @@
       <div style="text-align: center; margin: 1.25rem 0 0.75rem; color: var(--text-muted); font-size: 0.85rem;">or</div>
       <button type="button" id="btn-github" class="btn-secondary" style="width: 100%;">Sign in with GitHub</button>
     </form>
+  </div>
+
+  <!-- INITIAL USERNAME MODAL -->
+  <div id="username-screen" class="container hidden">
+    <div class="brand">
+      <h1>👋 Set Your Unique Username</h1>
+      <p>Please choose a username for your account to continue.</p>
+    </div>
+    <div id="username-alert" class="alert alert-danger"></div>
+    <div class="form-group">
+      <label for="input-username">Username</label>
+      <input type="text" id="input-username" placeholder="e.g. soundmaster99" />
+    </div>
+    <button type="button" id="btn-save-username" class="btn-primary" style="width:100%;">Save Username & Continue</button>
   </div>
 
   <!-- MAIN APP SCREEN -->
@@ -94,7 +108,7 @@
     <div class="user-badge">
       <div>
         <p style="font-size:0.75rem; color:var(--text-muted);">Signed in as</p>
-        <strong id="user-email-display" style="color:var(--accent);">---</strong>
+        <strong id="user-display" style="color:var(--accent);">@---</strong>
       </div>
       <button id="btn-signout" class="btn-secondary btn-sm">Sign Out</button>
     </div>
@@ -114,15 +128,16 @@
       </button>
     </div>
 
-    <!-- Views -->
+    <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="tab-btn active" data-view="personal">Personal Vault</button>
       <button class="tab-btn" data-view="shared">Shared With You</button>
       <button class="tab-btn" data-view="public">Public Feed</button>
+      <button class="tab-btn" data-view="settings">Settings</button>
     </div>
 
     <!-- Search Section -->
-    <div class="search-section">
+    <div id="search-container" class="search-section">
       <input type="text" id="search-input" placeholder="🔎 Search clips by title..." />
     </div>
 
@@ -138,11 +153,25 @@
       </div>
 
       <div class="form-group">
-        <label for="audio-file">Select Audio File (MP3, under 20MB)</label>
+        <label for="audio-file">Select Audio File (MP3/WAV/OGG, Max 15MB)</label>
         <input type="file" id="audio-file" accept="audio/*" />
       </div>
 
       <button type="button" id="btn-upload" class="btn-primary" style="width:100%;">Upload Audio</button>
+    </div>
+
+    <!-- Change Password Section -->
+    <div id="settings-container" class="password-section hidden">
+      <h3 style="font-size:1rem; margin-bottom:0.75rem;">Account Settings</h3>
+      <div id="settings-alert" class="alert alert-danger"></div>
+      <div id="settings-success" class="alert alert-success"></div>
+
+      <div class="form-group">
+        <label for="new-password">New Password</label>
+        <input type="password" id="new-password" placeholder="At least 8 chars (1 upper, 1 lower, 1 number)" />
+      </div>
+
+      <button type="button" id="btn-change-password" class="btn-primary" style="width:100%;">Update Password</button>
     </div>
 
     <!-- Clips Section -->
@@ -152,6 +181,6 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

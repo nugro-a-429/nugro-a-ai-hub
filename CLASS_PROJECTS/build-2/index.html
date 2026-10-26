@@ -133,7 +133,7 @@
       <button class="tab-btn active" data-view="personal">Personal Vault</button>
       <button class="tab-btn" data-view="shared">Shared With You</button>
       <button class="tab-btn" data-view="public">Public Feed</button>
-      <button class="tab-btn" data-view="settings">Settings</button>
+      <button class="tab-btn" id="settings-tab" data-view="settings">Settings</button>
     </div>
 
     <!-- Search Section -->
@@ -162,9 +162,14 @@
 
     <!-- Change Password Section -->
     <div id="settings-container" class="password-section hidden">
-      <h3 style="font-size:1rem; margin-bottom:0.75rem;">Account Settings</h3>
+      <h3 style="font-size:1rem; margin-bottom:0.75rem;">Change Password</h3>
       <div id="settings-alert" class="alert alert-danger"></div>
       <div id="settings-success" class="alert alert-success"></div>
+
+      <div class="form-group">
+        <label for="current-password">Current Password</label>
+        <input type="password" id="current-password" placeholder="Enter your current password" />
+      </div>
 
       <div class="form-group">
         <label for="new-password">New Password</label>
@@ -181,6 +186,6 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

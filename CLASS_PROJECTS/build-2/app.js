@@ -37,7 +37,9 @@ const uploadContainer = document.getElementById('upload-container');
 const searchContainer = document.getElementById('search-container');
 const searchInput = document.getElementById('search-input');
 
+const settingsTab = document.getElementById('settings-tab');
 const settingsContainer = document.getElementById('settings-container');
+const currentPasswordInput = document.getElementById('current-password');
 const newPasswordInput = document.getElementById('new-password');
 const btnChangePassword = document.getElementById('btn-change-password');
 const settingsAlert = document.getElementById('settings-alert');
@@ -118,25 +120,47 @@ btnSignOut.addEventListener('click', async () => {
   await client.auth.signOut();
 });
 
-// Change Password Handler
+// Change Password Handler (Requires Old Password Re-authentication)
 btnChangePassword.addEventListener('click', async () => {
   settingsAlert.style.display = 'none';
   settingsSuccess.style.display = 'none';
 
+  const currentPassword = currentPasswordInput.value;
   const newPassword = newPasswordInput.value;
-  if (!validatePassword(newPassword)) {
-    settingsAlert.textContent = 'Password must be at least 8 characters long and contain uppercase, lowercase, and numbers.';
+
+  if (!currentPassword) {
+    settingsAlert.textContent = 'Please enter your current password.';
     settingsAlert.style.display = 'block';
     return;
   }
 
-  const { error } = await client.auth.updateUser({ password: newPassword });
-  if (error) {
-    settingsAlert.textContent = error.message;
+  if (!validatePassword(newPassword)) {
+    settingsAlert.textContent = 'New password must be at least 8 characters long and contain uppercase, lowercase, and numbers.';
+    settingsAlert.style.display = 'block';
+    return;
+  }
+
+  // Verify current password first by re-authenticating
+  const { error: verifyError } = await client.auth.signInWithPassword({
+    email: currentUser.email,
+    password: currentPassword
+  });
+
+  if (verifyError) {
+    settingsAlert.textContent = 'Incorrect current password.';
+    settingsAlert.style.display = 'block';
+    return;
+  }
+
+  // Update password
+  const { error: updateError } = await client.auth.updateUser({ password: newPassword });
+  if (updateError) {
+    settingsAlert.textContent = updateError.message;
     settingsAlert.style.display = 'block';
   } else {
     settingsSuccess.textContent = 'Password updated successfully!';
     settingsSuccess.style.display = 'block';
+    currentPasswordInput.value = '';
     newPasswordInput.value = '';
   }
 });
@@ -167,10 +191,19 @@ btnSaveUsername.addEventListener('click', async () => {
     usernameScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userDisplay.textContent = `@${currentUsername}`;
+    configureProviderUI();
     populateAudioDevices();
     loadClips();
   }
 });
+
+// Show/Hide Settings tab based on login provider (Hide for GitHub OAuth)
+function configureProviderUI() {
+  const isEmailUser = currentUser?.app_metadata?.provider === 'email';
+  if (settingsTab) {
+    settingsTab.style.display = isEmailUser ? 'inline-block' : 'none';
+  }
+}
 
 // Navigation Views
 document.querySelectorAll('.tab-btn').forEach(button => {
@@ -252,7 +285,6 @@ btnUpload.addEventListener('click', async () => {
     return;
   }
 
-  // File size restriction check (15MB)
   if (file.size > 15 * 1024 * 1024) {
     uploadAlert.textContent = 'File size exceeds the 15MB limit.';
     uploadAlert.style.display = 'block';
@@ -305,7 +337,7 @@ async function loadClips() {
   if (currentView === 'personal') {
     query = query.eq('user_id', currentUser.id);
   } else if (currentView === 'shared') {
-    query = query.eq('visibility', 'shared').neq('user_id', currentUser.id);
+    query = query.eq('visibility', 'shared').cs('shared_with', [currentUsername]);
   } else if (currentView === 'public') {
     query = query.eq('visibility', 'public');
   }
@@ -379,23 +411,29 @@ async function renderClips() {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
         const newVis = e.target.value;
-        let sharedEmails = clip.shared_with || [];
+        let sharedUsernames = clip.shared_with || [];
 
         if (newVis === 'shared') {
-          const emailInputPrompt = prompt('Enter recipient emails separated by commas:', sharedEmails.join(', '));
-          if (emailInputPrompt !== null) {
-            sharedEmails = emailInputPrompt.split(',').map(em => em.trim().toLowerCase()).filter(em => em);
+          const userInputPrompt = prompt(
+            'Enter usernames to share with (separated by commas, without @):', 
+            sharedUsernames.join(', ')
+          );
+          if (userInputPrompt !== null) {
+            sharedUsernames = userInputPrompt
+              .split(',')
+              .map(u => u.trim().toLowerCase().replace(/^@/, ''))
+              .filter(u => u.length > 0);
           } else {
             e.target.value = clip.visibility;
             return;
           }
         } else {
-          sharedEmails = [];
+          sharedUsernames = [];
         }
 
         const { error } = await client.from('clips').update({
           visibility: newVis,
-          shared_with: sharedEmails
+          shared_with: sharedUsernames
         }).eq('id', clip.id);
 
         if (error) {
@@ -428,7 +466,6 @@ client.auth.onAuthStateChange(async (event, session) => {
     currentUser = session.user;
     authScreen.classList.add('hidden');
 
-    // Check profile table for assigned username
     const { data: profile } = await client
       .from('profiles')
       .select('username')
@@ -440,6 +477,7 @@ client.auth.onAuthStateChange(async (event, session) => {
       usernameScreen.classList.add('hidden');
       appScreen.classList.remove('hidden');
       userDisplay.textContent = `@${currentUsername}`;
+      configureProviderUI();
       populateAudioDevices();
       loadClips();
     } else {

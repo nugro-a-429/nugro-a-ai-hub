@@ -337,7 +337,8 @@ async function loadClips() {
   if (currentView === 'personal') {
     query = query.eq('user_id', currentUser.id);
   } else if (currentView === 'shared') {
-    query = query.eq('visibility', 'shared').cs('shared_with', [currentUsername]);
+    // FIX: Filter by shared visibility and check if currentUsername is in array
+    query = query.eq('visibility', 'shared').contains('shared_with', [currentUsername]);
   } else if (currentView === 'public') {
     query = query.eq('visibility', 'public');
   }

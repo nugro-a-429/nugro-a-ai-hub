@@ -17,6 +17,9 @@ const btnSignUp = document.getElementById('btn-signup');
 const btnGitHub = document.getElementById('btn-github');
 const btnSignOut = document.getElementById('btn-signout');
 
+const btnToggleAuthPrivacy = document.getElementById('btn-toggle-auth-privacy');
+const authPrivacyBox = document.getElementById('auth-privacy-box');
+
 const authAlert = document.getElementById('auth-alert');
 const authSuccess = document.getElementById('auth-success');
 const userDisplay = document.getElementById('user-display');
@@ -37,13 +40,17 @@ const uploadContainer = document.getElementById('upload-container');
 const searchContainer = document.getElementById('search-container');
 const searchInput = document.getElementById('search-input');
 
-const settingsTab = document.getElementById('settings-tab');
+const privacyContainer = document.getElementById('privacy-container');
 const settingsContainer = document.getElementById('settings-container');
+const passwordSettingsBox = document.getElementById('password-settings-box');
 const currentPasswordInput = document.getElementById('current-password');
 const newPasswordInput = document.getElementById('new-password');
 const btnChangePassword = document.getElementById('btn-change-password');
 const settingsAlert = document.getElementById('settings-alert');
 const settingsSuccess = document.getElementById('settings-success');
+
+const btnDeleteMyData = document.getElementById('btn-delete-my-data');
+const deleteDataAlert = document.getElementById('delete-data-alert');
 
 const speakerMonitorSelect = document.getElementById('speaker-monitor');
 const speakerCableSelect = document.getElementById('speaker-cable');
@@ -53,6 +60,16 @@ let currentUser = null;
 let currentUsername = '';
 let currentView = 'personal';
 let cachedClips = [];
+
+// Toggle Privacy Policy on Auth Screen
+if (btnToggleAuthPrivacy) {
+  btnToggleAuthPrivacy.addEventListener('click', () => {
+    authPrivacyBox.classList.toggle('hidden');
+    btnToggleAuthPrivacy.textContent = authPrivacyBox.classList.contains('hidden')
+      ? '🔒 Read our Privacy Policy'
+      : '🔒 Hide Privacy Policy';
+  });
+}
 
 // Password Complexity Validator
 function validatePassword(pass) {
@@ -165,6 +182,65 @@ btnChangePassword.addEventListener('click', async () => {
   }
 });
 
+// Delete My Data Handler
+btnDeleteMyData.addEventListener('click', async () => {
+  deleteDataAlert.style.display = 'none';
+
+  const confirmed = confirm(
+    'Are you sure you want to delete ALL your data? This will permanently remove your username, profile, and all of your uploaded audio files.'
+  );
+  if (!confirmed) return;
+
+  btnDeleteMyData.disabled = true;
+  btnDeleteMyData.textContent = 'Deleting your data...';
+
+  try {
+    // 1. Fetch all clips belonging to this user so we know which storage files to remove
+    const { data: userClips, error: fetchError } = await client
+      .from('clips')
+      .select('id, file_path')
+      .eq('user_id', currentUser.id);
+
+    if (fetchError) throw fetchError;
+
+    // 2. Delete all audio files from Supabase Storage
+    if (userClips && userClips.length > 0) {
+      const filePaths = userClips.map(c => c.file_path).filter(Boolean);
+      if (filePaths.length > 0) {
+        const { error: storageError } = await client.storage
+          .from('audio_clips')
+          .remove(filePaths);
+        if (storageError) console.warn('Storage cleanup warning:', storageError.message);
+      }
+
+      // 3. Delete all clip rows from the database
+      const { error: clipsDeleteError } = await client
+        .from('clips')
+        .delete()
+        .eq('user_id', currentUser.id);
+
+      if (clipsDeleteError) throw clipsDeleteError;
+    }
+
+    // 4. Delete the user's profile / username
+    const { error: profileDeleteError } = await client
+      .from('profiles')
+      .delete()
+      .eq('id', currentUser.id);
+
+    if (profileDeleteError) throw profileDeleteError;
+
+    // 5. Sign out the user
+    alert('All of your saved clips, files, and profile data have been permanently deleted.');
+    await client.auth.signOut();
+  } catch (err) {
+    deleteDataAlert.textContent = `Could not delete data: ${err.message}`;
+    deleteDataAlert.style.display = 'block';
+    btnDeleteMyData.disabled = false;
+    btnDeleteMyData.textContent = '🗑️ Delete My Data';
+  }
+});
+
 // Username Prompt Handler
 btnSaveUsername.addEventListener('click', async () => {
   usernameAlert.style.display = 'none';
@@ -197,11 +273,11 @@ btnSaveUsername.addEventListener('click', async () => {
   }
 });
 
-// Show/Hide Settings tab based on login provider (Hide for GitHub OAuth)
+// Show/Hide Password Box inside Settings based on login provider (Settings tab stays visible for Delete My Data)
 function configureProviderUI() {
   const isEmailUser = currentUser?.app_metadata?.provider === 'email';
-  if (settingsTab) {
-    settingsTab.style.display = isEmailUser ? 'inline-block' : 'none';
+  if (passwordSettingsBox) {
+    passwordSettingsBox.style.display = isEmailUser ? 'block' : 'none';
   }
 }
 
@@ -212,12 +288,15 @@ document.querySelectorAll('.tab-btn').forEach(button => {
     e.target.classList.add('active');
     currentView = e.target.getAttribute('data-view');
 
+    const isClipView = ['personal', 'shared', 'public'].includes(currentView);
+
     uploadContainer.style.display = currentView === 'personal' ? 'block' : 'none';
-    searchContainer.style.display = currentView === 'settings' ? 'none' : 'block';
-    clipList.style.display = currentView === 'settings' ? 'none' : 'flex';
+    searchContainer.style.display = isClipView ? 'block' : 'none';
+    clipList.style.display = isClipView ? 'flex' : 'none';
+    privacyContainer.classList.toggle('hidden', currentView !== 'privacy');
     settingsContainer.classList.toggle('hidden', currentView !== 'settings');
 
-    if (currentView !== 'settings') loadClips();
+    if (isClipView) loadClips();
   });
 });
 
@@ -337,7 +416,6 @@ async function loadClips() {
   if (currentView === 'personal') {
     query = query.eq('user_id', currentUser.id);
   } else if (currentView === 'shared') {
-    // FIX: Filter by shared visibility and check if currentUsername is in array
     query = query.eq('visibility', 'shared').contains('shared_with', [currentUsername]);
   } else if (currentView === 'public') {
     query = query.eq('visibility', 'public');
@@ -488,6 +566,8 @@ client.auth.onAuthStateChange(async (event, session) => {
   } else {
     currentUser = null;
     currentUsername = '';
+    btnDeleteMyData.disabled = false;
+    btnDeleteMyData.textContent = '🗑️ Delete My Data';
     appScreen.classList.add('hidden');
     usernameScreen.classList.add('hidden');
     authScreen.classList.remove('hidden');

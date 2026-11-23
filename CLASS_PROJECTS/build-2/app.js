@@ -23,6 +23,7 @@ const authPrivacyBox = document.getElementById('auth-privacy-box');
 const authAlert = document.getElementById('auth-alert');
 const authSuccess = document.getElementById('auth-success');
 const userDisplay = document.getElementById('user-display');
+const roleBadge = document.getElementById('role-badge');
 
 const inputUsername = document.getElementById('input-username');
 const btnSaveUsername = document.getElementById('btn-save-username');
@@ -39,6 +40,15 @@ const uploadSuccess = document.getElementById('upload-success');
 const uploadContainer = document.getElementById('upload-container');
 const searchContainer = document.getElementById('search-container');
 const searchInput = document.getElementById('search-input');
+
+const staffTab = document.getElementById('staff-tab');
+const staffContainer = document.getElementById('staff-container');
+const adminModBox = document.getElementById('admin-mod-box');
+const inputModUsername = document.getElementById('input-mod-username');
+const btnAddMod = document.getElementById('btn-add-mod');
+const modList = document.getElementById('mod-list');
+const modAlert = document.getElementById('mod-alert');
+const modSuccess = document.getElementById('mod-success');
 
 const privacyContainer = document.getElementById('privacy-container');
 const settingsContainer = document.getElementById('settings-container');
@@ -58,8 +68,11 @@ const btnRequestPermission = document.getElementById('btn-request-permission');
 
 let currentUser = null;
 let currentUsername = '';
+let isAdmin = false;
+let isModerator = false;
 let currentView = 'personal';
 let cachedClips = [];
+let hiddenClipIds = new Set();
 
 // Toggle Privacy Policy on Auth Screen
 if (btnToggleAuthPrivacy) {
@@ -137,7 +150,7 @@ btnSignOut.addEventListener('click', async () => {
   await client.auth.signOut();
 });
 
-// Change Password Handler (Requires Old Password Re-authentication)
+// Change Password Handler
 btnChangePassword.addEventListener('click', async () => {
   settingsAlert.style.display = 'none';
   settingsSuccess.style.display = 'none';
@@ -157,7 +170,6 @@ btnChangePassword.addEventListener('click', async () => {
     return;
   }
 
-  // Verify current password first by re-authenticating
   const { error: verifyError } = await client.auth.signInWithPassword({
     email: currentUser.email,
     password: currentPassword
@@ -169,7 +181,6 @@ btnChangePassword.addEventListener('click', async () => {
     return;
   }
 
-  // Update password
   const { error: updateError } = await client.auth.updateUser({ password: newPassword });
   if (updateError) {
     settingsAlert.textContent = updateError.message;
@@ -182,20 +193,20 @@ btnChangePassword.addEventListener('click', async () => {
   }
 });
 
-// Delete My Data Handler
+// Delete My Data & Account Handler
 btnDeleteMyData.addEventListener('click', async () => {
   deleteDataAlert.style.display = 'none';
 
   const confirmed = confirm(
-    'Are you sure you want to delete ALL your data? This will permanently remove your username, profile, and all of your uploaded audio files.'
+    'Are you sure you want to permanently delete your account and ALL your data? This removes your login, username, and all uploaded audio files.'
   );
   if (!confirmed) return;
 
   btnDeleteMyData.disabled = true;
-  btnDeleteMyData.textContent = 'Deleting your data...';
+  btnDeleteMyData.textContent = 'Deleting account & data...';
 
   try {
-    // 1. Fetch all clips belonging to this user so we know which storage files to remove
+    // 1. Fetch user's clips so we can clean up Storage files
     const { data: userClips, error: fetchError } = await client
       .from('clips')
       .select('id, file_path')
@@ -203,41 +214,40 @@ btnDeleteMyData.addEventListener('click', async () => {
 
     if (fetchError) throw fetchError;
 
-    // 2. Delete all audio files from Supabase Storage
+    // 2. Remove audio files from Storage
     if (userClips && userClips.length > 0) {
       const filePaths = userClips.map(c => c.file_path).filter(Boolean);
       if (filePaths.length > 0) {
-        const { error: storageError } = await client.storage
-          .from('audio_clips')
-          .remove(filePaths);
-        if (storageError) console.warn('Storage cleanup warning:', storageError.message);
+        await client.storage.from('audio_clips').remove(filePaths);
       }
 
-      // 3. Delete all clip rows from the database
+      // 3. Delete clip rows
       const { error: clipsDeleteError } = await client
         .from('clips')
         .delete()
         .eq('user_id', currentUser.id);
-
       if (clipsDeleteError) throw clipsDeleteError;
     }
 
-    // 4. Delete the user's profile / username
+    // 4. Delete profile row
     const { error: profileDeleteError } = await client
       .from('profiles')
       .delete()
       .eq('id', currentUser.id);
-
     if (profileDeleteError) throw profileDeleteError;
 
-    // 5. Sign out the user
-    alert('All of your saved clips, files, and profile data have been permanently deleted.');
+    // 5. Permanently delete auth.users account via SECURITY DEFINER RPC
+    const { error: accountDeleteError } = await client.rpc('delete_own_account');
+    if (accountDeleteError) throw accountDeleteError;
+
+    // 6. Clear local session
+    alert('Your account and all saved data have been permanently deleted.');
     await client.auth.signOut();
   } catch (err) {
-    deleteDataAlert.textContent = `Could not delete data: ${err.message}`;
+    deleteDataAlert.textContent = `Could not delete account: ${err.message}`;
     deleteDataAlert.style.display = 'block';
     btnDeleteMyData.disabled = false;
-    btnDeleteMyData.textContent = '🗑️ Delete My Data';
+    btnDeleteMyData.textContent = '🗑️ Delete My Data & Account';
   }
 });
 
@@ -267,13 +277,144 @@ btnSaveUsername.addEventListener('click', async () => {
     usernameScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userDisplay.textContent = `@${currentUsername}`;
+    await checkStaffRoles();
     configureProviderUI();
     populateAudioDevices();
     loadClips();
   }
 });
 
-// Show/Hide Password Box inside Settings based on login provider (Settings tab stays visible for Delete My Data)
+// Check Admin and Moderator Tables
+async function checkStaffRoles() {
+  isAdmin = false;
+  isModerator = false;
+
+  const { data: adminRow } = await client
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+
+  if (adminRow) isAdmin = true;
+
+  const { data: modRow } = await client
+    .from('moderators')
+    .select('user_id')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+
+  if (modRow) isModerator = true;
+
+  // Update Role Badge & Staff Tab visibility
+  if (isAdmin) {
+    roleBadge.textContent = 'Admin';
+    roleBadge.className = 'role-pill role-admin';
+    staffTab.classList.remove('hidden');
+    adminModBox.classList.remove('hidden');
+    loadModerators();
+  } else if (isModerator) {
+    roleBadge.textContent = 'Moderator';
+    roleBadge.className = 'role-pill role-mod';
+    staffTab.classList.remove('hidden');
+    adminModBox.classList.add('hidden');
+  } else {
+    roleBadge.classList.add('hidden');
+    staffTab.classList.add('hidden');
+    adminModBox.classList.add('hidden');
+  }
+}
+
+// Admin Panel: Load Moderators
+async function loadModerators() {
+  if (!isAdmin) return;
+  modList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Loading...</p>';
+
+  const { data: mods, error } = await client.from('moderators').select('user_id');
+  if (error) {
+    modList.innerHTML = `<p style="font-size:0.85rem; color:#fca5a5;">${error.message}</p>`;
+    return;
+  }
+
+  if (!mods || mods.length === 0) {
+    modList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.4rem;">No moderators assigned yet.</p>';
+    return;
+  }
+
+  const modIds = mods.map(m => m.user_id);
+  const { data: profiles } = await client
+    .from('profiles')
+    .select('id, username')
+    .in('id', modIds);
+
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.id] = p.username; });
+
+  modList.innerHTML = '';
+  mods.forEach(m => {
+    const uname = profileMap[m.user_id] ? `@${profileMap[m.user_id]}` : m.user_id;
+    const item = document.createElement('div');
+    item.className = 'mod-item';
+    item.innerHTML = `
+      <span style="font-size:0.9rem; font-weight:600;">${uname}</span>
+      <button type="button" class="btn-danger btn-sm btn-remove-mod" data-uid="${m.user_id}">Remove</button>
+    `;
+    item.querySelector('.btn-remove-mod').addEventListener('click', async () => {
+      const { error: delErr } = await client.from('moderators').delete().eq('user_id', m.user_id);
+      if (delErr) {
+        alert(`Failed to remove moderator: ${delErr.message}`);
+      } else {
+        loadModerators();
+      }
+    });
+    modList.appendChild(item);
+  });
+}
+
+// Admin Panel: Add Moderator by Username
+if (btnAddMod) {
+  btnAddMod.addEventListener('click', async () => {
+    modAlert.style.display = 'none';
+    modSuccess.style.display = 'none';
+
+    const targetUsername = inputModUsername.value.trim().toLowerCase().replace(/^@/, '');
+    if (!targetUsername) {
+      modAlert.textContent = 'Please enter a username.';
+      modAlert.style.display = 'block';
+      return;
+    }
+
+    const { data: targetProfile, error: findErr } = await client
+      .from('profiles')
+      .select('id, username')
+      .eq('username', targetUsername)
+      .maybeSingle();
+
+    if (findErr || !targetProfile) {
+      modAlert.textContent = `User @${targetUsername} not found.`;
+      modAlert.style.display = 'block';
+      return;
+    }
+
+    const { error: insertErr } = await client.from('moderators').insert({
+      user_id: targetProfile.id,
+      added_by: currentUser.id
+    });
+
+    if (insertErr) {
+      modAlert.textContent = insertErr.message.includes('duplicate')
+        ? `@${targetUsername} is already a moderator.`
+        : insertErr.message;
+      modAlert.style.display = 'block';
+    } else {
+      modSuccess.textContent = `@${targetUsername} is now a moderator!`;
+      modSuccess.style.display = 'block';
+      inputModUsername.value = '';
+      loadModerators();
+    }
+  });
+}
+
+// Show/Hide Password Box inside Settings based on login provider
 function configureProviderUI() {
   const isEmailUser = currentUser?.app_metadata?.provider === 'email';
   if (passwordSettingsBox) {
@@ -293,10 +434,12 @@ document.querySelectorAll('.tab-btn').forEach(button => {
     uploadContainer.style.display = currentView === 'personal' ? 'block' : 'none';
     searchContainer.style.display = isClipView ? 'block' : 'none';
     clipList.style.display = isClipView ? 'flex' : 'none';
+    staffContainer.classList.toggle('hidden', currentView !== 'staff');
     privacyContainer.classList.toggle('hidden', currentView !== 'privacy');
     settingsContainer.classList.toggle('hidden', currentView !== 'settings');
 
     if (isClipView) loadClips();
+    if (currentView === 'staff' && isAdmin) loadModerators();
   });
 });
 
@@ -407,7 +550,7 @@ btnUpload.addEventListener('click', async () => {
   }
 });
 
-// Fetch Clips
+// Fetch Clips & Hidden Status
 async function loadClips() {
   if (!currentUser) return;
 
@@ -426,6 +569,10 @@ async function loadClips() {
     console.error("DB Query Error:", error);
     return;
   }
+
+  // Fetch hidden clip IDs so staff & owners can see if a clip is hidden
+  const { data: hiddenRows } = await client.from('hidden_clips').select('clip_id');
+  hiddenClipIds = new Set((hiddenRows || []).map(r => r.clip_id));
 
   cachedClips = data || [];
   renderClips();
@@ -459,12 +606,17 @@ async function renderClips() {
     }
 
     const isOwner = clip.user_id === currentUser.id;
+    const isStaff = isAdmin || isModerator;
+    const isHidden = hiddenClipIds.has(clip.id);
 
     const clipCard = document.createElement('div');
-    clipCard.className = 'clip-item';
+    clipCard.className = `clip-item ${isHidden ? 'is-hidden-clip' : ''}`;
     clipCard.innerHTML = `
       <div class="clip-top-row">
-        <span class="clip-title">${clip.title}</span>
+        <div>
+          <span class="clip-title">${clip.title}</span>
+          ${isHidden ? '<span class="hidden-badge">HIDDEN BY STAFF</span>' : ''}
+        </div>
         <div class="clip-controls-row">
           ${isOwner ? `
             <select class="clip-select visibility-select" data-id="${clip.id}">
@@ -472,10 +624,19 @@ async function renderClips() {
               <option value="public" ${clip.visibility === 'public' ? 'selected' : ''}>🌐 Public</option>
               <option value="shared" ${clip.visibility === 'shared' ? 'selected' : ''}>👥 Shared</option>
             </select>
-            <button class="btn-danger btn-sm btn-delete" data-id="${clip.id}" data-path="${clip.file_path}">🗑️ Delete</button>
           ` : `
             <span style="font-size:0.75rem; color:var(--text-muted);">${clip.visibility.toUpperCase()}</span>
           `}
+
+          ${isStaff && clip.visibility === 'public' ? `
+            <button class="btn-warning btn-sm btn-toggle-hide" data-id="${clip.id}">
+              ${isHidden ? '👁️ Unhide' : '🙈 Hide'}
+            </button>
+          ` : ''}
+
+          ${isOwner || isStaff ? `
+            <button class="btn-danger btn-sm btn-delete" data-id="${clip.id}" data-path="${clip.file_path}">🗑️ Delete</button>
+          ` : ''}
         </div>
       </div>
       <audio controls src="${audioUrl}" class="audio-player" preload="metadata"></audio>
@@ -486,6 +647,7 @@ async function renderClips() {
     audioElem.addEventListener('play', applyRouting);
     speakerCableSelect.addEventListener('change', applyRouting);
 
+    // Owner Visibility Controls
     if (isOwner) {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
@@ -522,14 +684,37 @@ async function renderClips() {
           loadClips();
         }
       });
+    }
 
-      clipCard.querySelector('.btn-delete').addEventListener('click', async (e) => {
-        const clipId = e.target.getAttribute('data-id');
-        const filePath = e.target.getAttribute('data-path');
+    // Staff Hide / Unhide Controls
+    const hideBtn = clipCard.querySelector('.btn-toggle-hide');
+    if (hideBtn) {
+      hideBtn.addEventListener('click', async () => {
+        if (isHidden) {
+          const { error } = await client.from('hidden_clips').delete().eq('clip_id', clip.id);
+          if (error) alert(`Unhide failed: ${error.message}`);
+        } else {
+          const { error } = await client.from('hidden_clips').insert({
+            clip_id: clip.id,
+            hidden_by: currentUser.id
+          });
+          if (error) alert(`Hide failed: ${error.message}`);
+        }
+        loadClips();
+      });
+    }
 
+    // Owner or Staff Delete Controls
+    const delBtn = clipCard.querySelector('.btn-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
         if (confirm('Are you sure you want to delete this clip?')) {
-          await client.from('clips').delete().eq('id', clipId);
-          await client.storage.from('audio_clips').remove([filePath]);
+          const { error: dbDelErr } = await client.from('clips').delete().eq('id', clip.id);
+          if (dbDelErr) {
+            alert(`Delete failed: ${dbDelErr.message}`);
+            return;
+          }
+          await client.storage.from('audio_clips').remove([clip.file_path]);
           loadClips();
         }
       });
@@ -556,6 +741,7 @@ client.auth.onAuthStateChange(async (event, session) => {
       usernameScreen.classList.add('hidden');
       appScreen.classList.remove('hidden');
       userDisplay.textContent = `@${currentUsername}`;
+      await checkStaffRoles();
       configureProviderUI();
       populateAudioDevices();
       loadClips();
@@ -566,8 +752,10 @@ client.auth.onAuthStateChange(async (event, session) => {
   } else {
     currentUser = null;
     currentUsername = '';
+    isAdmin = false;
+    isModerator = false;
     btnDeleteMyData.disabled = false;
-    btnDeleteMyData.textContent = '🗑️ Delete My Data';
+    btnDeleteMyData.textContent = '🗑️ Delete My Data & Account';
     appScreen.classList.add('hidden');
     usernameScreen.classList.add('hidden');
     authScreen.classList.remove('hidden');

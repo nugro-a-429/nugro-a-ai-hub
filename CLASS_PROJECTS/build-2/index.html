@@ -15,6 +15,7 @@
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --danger: #ef4444;
+      --warning: #f59e0b;
       --success: #10b981;
       --border: #1e293b;
       --border-light: #334155;
@@ -35,6 +36,8 @@
     .btn-primary:hover { background-color: var(--accent-hover); }
     .btn-secondary { background-color: transparent; border: 1px solid var(--border-light); color: var(--text-main); }
     .btn-secondary:hover { border-color: var(--text-muted); }
+    .btn-warning { background-color: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); color: #fcd34d; }
+    .btn-warning:hover { background-color: var(--warning); color: #0f172a; }
     .btn-danger { background-color: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
     .btn-danger:hover { background-color: var(--danger); color: white; }
     .alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
@@ -42,20 +45,28 @@
     .alert-success { background-color: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: #6ee7b7; }
     .hidden { display: none !important; }
     .user-badge { background-color: var(--card-inner); padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    .role-pill { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: 0.4rem; vertical-align: middle; }
+    .role-admin { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--danger); }
+    .role-mod { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid var(--warning); }
     .nav-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-light); margin-bottom: 1.5rem; padding-bottom: 0.5rem; flex-wrap: wrap; }
-    .tab-btn { background: none; border: none; color: var(--text-muted); padding: 0.5rem 0.85rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .tab-btn { background: none; border: none; color: var(--text-muted); padding: 0.5rem 0.85rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: none; }
     .tab-btn.active { background-color: var(--accent); color: white; }
     .speaker-controls { background-color: var(--card-inner); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     .upload-section, .search-section, .settings-box, .privacy-box { background-color: var(--card-inner); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; }
     .danger-zone { border-color: rgba(239, 68, 68, 0.4); }
     .clip-list { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
     .clip-item { background-color: var(--card-inner); padding: 1.25rem; border-radius: 10px; border: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 0.75rem; }
-    .clip-top-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .clip-item.is-hidden-clip { border-color: var(--warning); background-color: rgba(245, 158, 11, 0.06); }
+    .clip-top-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .clip-title { font-weight: 600; font-size: 1.1rem; }
+    .hidden-badge { font-size: 0.7rem; background: rgba(245, 158, 11, 0.2); color: #fcd34d; padding: 0.15rem 0.45rem; border-radius: 4px; margin-left: 0.5rem; }
     .clip-controls-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .clip-select { padding: 0.35rem 0.5rem; font-size: 0.75rem; width: auto; background-color: var(--bg-color); }
     .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 6px; flex: none; }
     audio { width: 100%; height: 40px; margin-top: 0.25rem; }
+
+    /* Mod List Items */
+    .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0.85rem; background: var(--bg-color); border: 1px solid var(--border-light); border-radius: 8px; margin-top: 0.5rem; }
 
     /* Privacy Policy Styling */
     .privacy-box h3 { font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-main); }
@@ -127,7 +138,7 @@
       <h4>3. How to delete it</h4>
       <ul>
         <li><strong>One clip at a time:</strong> Click the <strong>Delete</strong> button next to any clip in your <strong>Personal Vault</strong>. This removes both the sound file and its title.</li>
-        <li><strong>Delete My Data button (in Settings):</strong> Removes your username, profile, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
+        <li><strong>Delete My Data & Account button (in Settings):</strong> Permanently removes your login account, username, profile, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
       </ul>
 
       <h4>4. What my app never saves</h4>
@@ -160,6 +171,7 @@
       <div>
         <p style="font-size:0.75rem; color:var(--text-muted);">Signed in as</p>
         <strong id="user-display" style="color:var(--accent);">@---</strong>
+        <span id="role-badge" class="role-pill hidden"></span>
       </div>
       <button id="btn-signout" class="btn-secondary btn-sm">Sign Out</button>
     </div>
@@ -184,6 +196,7 @@
       <button class="tab-btn active" data-view="personal">Personal Vault</button>
       <button class="tab-btn" data-view="shared">Shared With You</button>
       <button class="tab-btn" data-view="public">Public Feed</button>
+      <button class="tab-btn hidden" id="staff-tab" data-view="staff">🛡️ Staff Panel</button>
       <button class="tab-btn" data-view="privacy">Privacy Policy</button>
       <button class="tab-btn" id="settings-tab" data-view="settings">Settings</button>
     </div>
@@ -212,6 +225,39 @@
       <button type="button" id="btn-upload" class="btn-primary" style="width:100%;">Upload Audio</button>
     </div>
 
+    <!-- Staff / Admin Panel -->
+    <div id="staff-container" class="hidden">
+      <!-- Admin-Only Box: Manage Moderators -->
+      <div id="admin-mod-box" class="settings-box hidden">
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">👑 Admin Controls: Manage Moderators</h3>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+          Promote or remove moderators by username. (Admins can only be added in the Supabase Dashboard.)
+        </p>
+        <div id="mod-alert" class="alert alert-danger"></div>
+        <div id="mod-success" class="alert alert-success"></div>
+
+        <div class="form-group" style="display:flex; gap:0.5rem;">
+          <input type="text" id="input-mod-username" placeholder="Enter @username to make moderator" />
+          <button type="button" id="btn-add-mod" class="btn-primary" style="flex:none;">Add Mod</button>
+        </div>
+
+        <div style="margin-top:1rem;">
+          <label>Current Moderators</label>
+          <div id="mod-list">
+            <p style="font-size:0.85rem; color:var(--text-muted);">Loading moderators...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Staff Guide Box -->
+      <div class="settings-box">
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">🛡️ Moderation Guide</h3>
+        <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.45;">
+          Go to the <strong>Public Feed</strong> tab to review public clips. As staff, you can <strong>Hide</strong> rule-breaking clips (hiding them from normal users while keeping them visible to staff and the uploader) or permanently <strong>Delete</strong> them.
+        </p>
+      </div>
+    </div>
+
     <!-- Privacy Policy View (Logged-in Tab) -->
     <div id="privacy-container" class="privacy-box hidden">
       <h3>🔒 Sound Share Privacy Policy</h3>
@@ -236,7 +282,7 @@
       <h4>3. How to delete it</h4>
       <ul>
         <li><strong>One clip at a time:</strong> Click the <strong>Delete</strong> button next to any clip in your <strong>Personal Vault</strong>. This removes both the sound file and its title.</li>
-        <li><strong>Delete My Data button (in Settings):</strong> Removes your username, profile, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
+        <li><strong>Delete My Data & Account button (in Settings):</strong> Permanently removes your login account, username, profile, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
       </ul>
 
       <h4>4. What my app never saves</h4>
@@ -266,12 +312,12 @@
 
       <!-- Delete My Data Box (Shown for ALL users) -->
       <div class="settings-box danger-zone">
-        <h3 style="font-size:1rem; margin-bottom:0.5rem; color:#fca5a5;">Delete My Data</h3>
+        <h3 style="font-size:1rem; margin-bottom:0.5rem; color:#fca5a5;">Delete My Data & Account</h3>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.45;">
-          This permanently deletes your username, profile, and all audio files you have uploaded to Sound Share, then signs you out. (It cannot remove files someone else already downloaded to their own device.)
+          This permanently deletes your login account, username, profile, and all audio files you have uploaded to Sound Share. (It cannot remove files someone else already downloaded to their own device.)
         </p>
         <div id="delete-data-alert" class="alert alert-danger"></div>
-        <button type="button" id="btn-delete-my-data" class="btn-danger" style="width:100%;">🗑️ Delete My Data</button>
+        <button type="button" id="btn-delete-my-data" class="btn-danger" style="width:100%;">🗑️ Delete My Data & Account</button>
       </div>
     </div>
 
@@ -286,6 +332,6 @@
   </footer>
 
   <script src="config.js"></script>
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>

@@ -609,6 +609,9 @@ async function loadReports() {
         <button type="button" class="btn-secondary btn-sm btn-rep-status" data-status="reviewed">Mark Reviewed</button>
         <button type="button" class="btn-success btn-sm btn-rep-status" data-status="resolved">Mark Resolved</button>
         <button type="button" class="btn-secondary btn-sm btn-rep-status" data-status="dismissed">Dismiss</button>
+        ${isOwner ? `
+          <button type="button" class="btn-danger btn-sm btn-rep-remove-entry">❌ Delete Report</button>
+        ` : ''}
       </div>
     `;
 
@@ -661,6 +664,20 @@ async function loadReports() {
         }
       });
     });
+
+    // Delete Report Entry (Owner ONLY)
+    const removeReportBtn = card.querySelector('.btn-rep-remove-entry');
+    if (removeReportBtn) {
+      removeReportBtn.addEventListener('click', async () => {
+        if (!confirm('Permanently delete this report from the queue?')) return;
+        const { error: remErr } = await client.from('reports').delete().eq('id', rep.id);
+        if (remErr) {
+          alert(`Failed to delete report: ${remErr.message}`);
+        } else {
+          loadReports();
+        }
+      });
+    }
 
     reportsList.appendChild(card);
   });

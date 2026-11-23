@@ -43,6 +43,14 @@ const searchInput = document.getElementById('search-input');
 
 const staffTab = document.getElementById('staff-tab');
 const staffContainer = document.getElementById('staff-container');
+
+const ownerAdminBox = document.getElementById('owner-admin-box');
+const inputAdminUsername = document.getElementById('input-admin-username');
+const btnAddAdmin = document.getElementById('btn-add-admin');
+const adminList = document.getElementById('admin-list');
+const adminAlert = document.getElementById('admin-alert');
+const adminSuccess = document.getElementById('admin-success');
+
 const adminModBox = document.getElementById('admin-mod-box');
 const inputModUsername = document.getElementById('input-mod-username');
 const btnAddMod = document.getElementById('btn-add-mod');
@@ -68,6 +76,7 @@ const btnRequestPermission = document.getElementById('btn-request-permission');
 
 let currentUser = null;
 let currentUsername = '';
+let isOwner = false;
 let isAdmin = false;
 let isModerator = false;
 let currentView = 'personal';
@@ -206,7 +215,6 @@ btnDeleteMyData.addEventListener('click', async () => {
   btnDeleteMyData.textContent = 'Deleting account & data...';
 
   try {
-    // 1. Fetch user's clips so we can clean up Storage files
     const { data: userClips, error: fetchError } = await client
       .from('clips')
       .select('id, file_path')
@@ -214,14 +222,12 @@ btnDeleteMyData.addEventListener('click', async () => {
 
     if (fetchError) throw fetchError;
 
-    // 2. Remove audio files from Storage
     if (userClips && userClips.length > 0) {
       const filePaths = userClips.map(c => c.file_path).filter(Boolean);
       if (filePaths.length > 0) {
         await client.storage.from('audio_clips').remove(filePaths);
       }
 
-      // 3. Delete clip rows
       const { error: clipsDeleteError } = await client
         .from('clips')
         .delete()
@@ -229,18 +235,15 @@ btnDeleteMyData.addEventListener('click', async () => {
       if (clipsDeleteError) throw clipsDeleteError;
     }
 
-    // 4. Delete profile row
     const { error: profileDeleteError } = await client
       .from('profiles')
       .delete()
       .eq('id', currentUser.id);
     if (profileDeleteError) throw profileDeleteError;
 
-    // 5. Permanently delete auth.users account via SECURITY DEFINER RPC
     const { error: accountDeleteError } = await client.rpc('delete_own_account');
     if (accountDeleteError) throw accountDeleteError;
 
-    // 6. Clear local session
     alert('Your account and all saved data have been permanently deleted.');
     await client.auth.signOut();
   } catch (err) {
@@ -284,17 +287,24 @@ btnSaveUsername.addEventListener('click', async () => {
   }
 });
 
-// Check Admin and Moderator Tables
+// Check Owner, Admin, and Moderator Tables
 async function checkStaffRoles() {
+  isOwner = false;
   isAdmin = false;
   isModerator = false;
+
+  const { data: ownerRow } = await client
+    .from('owners')
+    .select('user_id')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+  if (ownerRow) isOwner = true;
 
   const { data: adminRow } = await client
     .from('admins')
     .select('user_id')
     .eq('user_id', currentUser.id)
     .maybeSingle();
-
   if (adminRow) isAdmin = true;
 
   const { data: modRow } = await client
@@ -302,31 +312,131 @@ async function checkStaffRoles() {
     .select('user_id')
     .eq('user_id', currentUser.id)
     .maybeSingle();
-
   if (modRow) isModerator = true;
 
   // Update Role Badge & Staff Tab visibility
-  if (isAdmin) {
+  if (isOwner) {
+    roleBadge.textContent = 'Owner';
+    roleBadge.className = 'role-pill role-owner';
+    staffTab.classList.remove('hidden');
+    ownerAdminBox.classList.remove('hidden');
+    adminModBox.classList.remove('hidden');
+    loadAdmins();
+    loadModerators();
+  } else if (isAdmin) {
     roleBadge.textContent = 'Admin';
     roleBadge.className = 'role-pill role-admin';
     staffTab.classList.remove('hidden');
+    ownerAdminBox.classList.add('hidden');
     adminModBox.classList.remove('hidden');
     loadModerators();
   } else if (isModerator) {
     roleBadge.textContent = 'Moderator';
     roleBadge.className = 'role-pill role-mod';
     staffTab.classList.remove('hidden');
+    ownerAdminBox.classList.add('hidden');
     adminModBox.classList.add('hidden');
   } else {
     roleBadge.classList.add('hidden');
     staffTab.classList.add('hidden');
+    ownerAdminBox.classList.add('hidden');
     adminModBox.classList.add('hidden');
   }
 }
 
-// Admin Panel: Load Moderators
+// Owner Panel: Load Admins
+async function loadAdmins() {
+  if (!isOwner) return;
+  adminList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Loading...</p>';
+
+  const { data: admins, error } = await client.from('admins').select('user_id');
+  if (error) {
+    adminList.innerHTML = `<p style="font-size:0.85rem; color:#fca5a5;">${error.message}</p>`;
+    return;
+  }
+
+  if (!admins || admins.length === 0) {
+    adminList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.4rem;">No admins assigned yet.</p>';
+    return;
+  }
+
+  const adminIds = admins.map(a => a.user_id);
+  const { data: profiles } = await client
+    .from('profiles')
+    .select('id, username')
+    .in('id', adminIds);
+
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.id] = p.username; });
+
+  adminList.innerHTML = '';
+  admins.forEach(a => {
+    const uname = profileMap[a.user_id] ? `@${profileMap[a.user_id]}` : a.user_id;
+    const item = document.createElement('div');
+    item.className = 'mod-item';
+    item.innerHTML = `
+      <span style="font-size:0.9rem; font-weight:600;">${uname}</span>
+      <button type="button" class="btn-danger btn-sm btn-remove-admin" data-uid="${a.user_id}">Remove</button>
+    `;
+    item.querySelector('.btn-remove-admin').addEventListener('click', async () => {
+      const { error: delErr } = await client.from('admins').delete().eq('user_id', a.user_id);
+      if (delErr) {
+        alert(`Failed to remove admin: ${delErr.message}`);
+      } else {
+        loadAdmins();
+      }
+    });
+    adminList.appendChild(item);
+  });
+}
+
+// Owner Panel: Add Admin by Username
+if (btnAddAdmin) {
+  btnAddAdmin.addEventListener('click', async () => {
+    adminAlert.style.display = 'none';
+    adminSuccess.style.display = 'none';
+
+    const targetUsername = inputAdminUsername.value.trim().toLowerCase().replace(/^@/, '');
+    if (!targetUsername) {
+      adminAlert.textContent = 'Please enter a username.';
+      adminAlert.style.display = 'block';
+      return;
+    }
+
+    const { data: targetProfile, error: findErr } = await client
+      .from('profiles')
+      .select('id, username')
+      .eq('username', targetUsername)
+      .maybeSingle();
+
+    if (findErr || !targetProfile) {
+      adminAlert.textContent = `User @${targetUsername} not found.`;
+      adminAlert.style.display = 'block';
+      return;
+    }
+
+    const { error: insertErr } = await client.from('admins').insert({
+      user_id: targetProfile.id,
+      added_by: currentUser.id
+    });
+
+    if (insertErr) {
+      adminAlert.textContent = insertErr.message.includes('duplicate')
+        ? `@${targetUsername} is already an admin.`
+        : insertErr.message;
+      adminAlert.style.display = 'block';
+    } else {
+      adminSuccess.textContent = `@${targetUsername} is now an admin!`;
+      adminSuccess.style.display = 'block';
+      inputAdminUsername.value = '';
+      loadAdmins();
+    }
+  });
+}
+
+// Owner & Admin Panel: Load Moderators
 async function loadModerators() {
-  if (!isAdmin) return;
+  if (!isOwner && !isAdmin) return;
   modList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Loading...</p>';
 
   const { data: mods, error } = await client.from('moderators').select('user_id');
@@ -370,7 +480,7 @@ async function loadModerators() {
   });
 }
 
-// Admin Panel: Add Moderator by Username
+// Owner & Admin Panel: Add Moderator by Username
 if (btnAddMod) {
   btnAddMod.addEventListener('click', async () => {
     modAlert.style.display = 'none';
@@ -439,7 +549,10 @@ document.querySelectorAll('.tab-btn').forEach(button => {
     settingsContainer.classList.toggle('hidden', currentView !== 'settings');
 
     if (isClipView) loadClips();
-    if (currentView === 'staff' && isAdmin) loadModerators();
+    if (currentView === 'staff') {
+      if (isOwner) loadAdmins();
+      if (isOwner || isAdmin) loadModerators();
+    }
   });
 });
 
@@ -570,7 +683,6 @@ async function loadClips() {
     return;
   }
 
-  // Fetch hidden clip IDs so staff & owners can see if a clip is hidden
   const { data: hiddenRows } = await client.from('hidden_clips').select('clip_id');
   hiddenClipIds = new Set((hiddenRows || []).map(r => r.clip_id));
 
@@ -606,7 +718,7 @@ async function renderClips() {
     }
 
     const isOwner = clip.user_id === currentUser.id;
-    const isStaff = isAdmin || isModerator;
+    const isStaff = isOwner || isAdmin || isModerator;
     const isHidden = hiddenClipIds.has(clip.id);
 
     const clipCard = document.createElement('div');
@@ -647,7 +759,6 @@ async function renderClips() {
     audioElem.addEventListener('play', applyRouting);
     speakerCableSelect.addEventListener('change', applyRouting);
 
-    // Owner Visibility Controls
     if (isOwner) {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
@@ -686,7 +797,6 @@ async function renderClips() {
       });
     }
 
-    // Staff Hide / Unhide Controls
     const hideBtn = clipCard.querySelector('.btn-toggle-hide');
     if (hideBtn) {
       hideBtn.addEventListener('click', async () => {
@@ -704,7 +814,6 @@ async function renderClips() {
       });
     }
 
-    // Owner or Staff Delete Controls
     const delBtn = clipCard.querySelector('.btn-delete');
     if (delBtn) {
       delBtn.addEventListener('click', async () => {
@@ -752,6 +861,7 @@ client.auth.onAuthStateChange(async (event, session) => {
   } else {
     currentUser = null;
     currentUsername = '';
+    isOwner = false;
     isAdmin = false;
     isModerator = false;
     btnDeleteMyData.disabled = false;

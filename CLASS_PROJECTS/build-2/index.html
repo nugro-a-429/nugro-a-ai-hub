@@ -24,7 +24,7 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
-    .container { width: 100%; max-width: 680px; background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
+    .container { width: 100%; max-width: 720px; background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
     .brand { text-align: center; margin-bottom: 1.5rem; }
     .brand h1 { font-size: 2rem; }
     .brand p { color: var(--text-muted); font-size: 0.9rem; }
@@ -32,7 +32,7 @@
     label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted); text-transform: uppercase; }
     input[type="email"], input[type="password"], input[type="text"], input[type="file"], select { width: 100%; padding: 0.75rem; background-color: var(--card-inner); border: 1px solid var(--border-light); border-radius: 8px; color: var(--text-main); font-size: 0.95rem; outline: none; }
     .btn-group { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
-    button { flex: 1; padding: 0.75rem 1rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    button { flex: 1; padding: 0.75rem 1rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; }
     .btn-primary { background-color: var(--accent); color: white; }
     .btn-primary:hover { background-color: var(--accent-hover); }
     .btn-secondary { background-color: transparent; border: 1px solid var(--border-light); color: var(--text-main); }
@@ -41,6 +41,8 @@
     .btn-warning:hover { background-color: var(--warning); color: #0f172a; }
     .btn-danger { background-color: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
     .btn-danger:hover { background-color: var(--danger); color: white; }
+    .btn-success { background-color: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: #6ee7b7; }
+    .btn-success:hover { background-color: var(--success); color: #0f172a; }
     .alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
     .alert-danger { background-color: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
     .alert-success { background-color: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: #6ee7b7; }
@@ -64,13 +66,19 @@
     .clip-title { font-weight: 600; font-size: 1.1rem; }
     .clip-author { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
     .hidden-badge { font-size: 0.65rem; font-weight: 700; background: rgba(245, 158, 11, 0.2); color: #fcd34d; padding: 0.15rem 0.45rem; border-radius: 4px; margin-left: 0.4rem; vertical-align: middle; }
-    .clip-controls-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .clip-controls-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
     .clip-select { padding: 0.35rem 0.5rem; font-size: 0.75rem; width: auto; background-color: var(--bg-color); }
-    .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 6px; flex: none; }
+    .btn-sm { padding: 0.35rem 0.6rem; font-size: 0.75rem; border-radius: 6px; flex: none; }
     audio { width: 100%; height: 40px; margin-top: 0.25rem; }
 
-    /* Staff List Items */
-    .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0.85rem; background: var(--bg-color); border: 1px solid var(--border-light); border-radius: 8px; margin-top: 0.5rem; }
+    /* Staff & Report List Items */
+    .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0.85rem; background: var(--bg-color); border: 1px solid var(--border-light); border-radius: 8px; margin-top: 0.5rem; gap: 0.75rem; flex-wrap: wrap; }
+    .report-card { padding: 0.85rem 1rem; background: var(--bg-color); border: 1px solid var(--border-light); border-radius: 8px; margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .status-pill { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 4px; }
+    .status-pending { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .status-reviewed { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+    .status-resolved { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+    .status-dismissed { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
 
     /* Privacy Policy Styling */
     .privacy-box h3 { font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--text-main); }
@@ -80,7 +88,6 @@
     .privacy-box p { font-size: 0.88rem; color: #cbd5e1; line-height: 1.45; }
     .link-btn { background: none; border: none; color: #a5b4fc; text-decoration: underline; font-size: 0.85rem; padding: 0; cursor: pointer; flex: none; }
 
-    /* Footer Attribution */
     footer { margin-top: 1.5rem; font-size: 0.8rem; color: var(--text-muted); text-align: center; }
     footer a { color: #a5b4fc; text-decoration: none; }
     footer a:hover { text-decoration: underline; }
@@ -118,7 +125,6 @@
       <button type="button" id="btn-toggle-auth-privacy" class="link-btn">🔒 Read our Privacy Policy</button>
     </div>
 
-    <!-- Collapsible Privacy Policy on Auth Screen -->
     <div id="auth-privacy-box" class="privacy-box hidden" style="margin-top: 1rem; margin-bottom: 0;">
       <h3>🔒 Sound Share Privacy Policy</h3>
       <p class="read-time">Plain words • 1-minute read</p>
@@ -128,6 +134,7 @@
         <li><strong>Your email and scrambled password (or your GitHub account info):</strong> So you can sign up, sign in, and keep your account yours. If you sign in with GitHub, we get your basic account info from GitHub instead of a password. If you use email, we never see your real password—only a scrambled code.</li>
         <li><strong>Your username:</strong> So other people know who shared a clip with them without seeing your email.</li>
         <li><strong>Your audio files, titles, and sharing settings:</strong> Saved in our storage and database so you can store, play, and share your sounds.</li>
+        <li><strong>Reports and blocked users:</strong> When you report a clip/user or block someone, we save that record so staff can review rule-breaking content and so blocked users' clips stay hidden from you.</li>
         <li><strong>Temporary device permission (not saved):</strong> When you click <em>Enable Output Device Detection</em>, the browser asks for microphone access just so it can list your speakers and virtual cables. We immediately stop the connection and never save or record anything from it.</li>
       </ul>
 
@@ -137,6 +144,7 @@
         <li><strong>Private clips:</strong> Only you in the app (though as the app creator, I can technically see stored files inside the Supabase database).</li>
         <li><strong>Shared clips:</strong> Only you and the exact usernames you list.</li>
         <li><strong>Public clips:</strong> Everyone signed in to the app, plus <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> who keep the public feed safe.</li>
+        <li><strong>Reports:</strong> Only you when submitting, and <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> in the Staff Panel.</li>
       </ul>
 
       <h4>3. How to delete it</h4>
@@ -175,7 +183,7 @@
       <div>
         <p style="font-size:0.75rem; color:var(--text-muted);">Signed in as</p>
         <strong id="user-display" style="color:var(--accent);">@---</strong>
-        <span id="role-badge" class="role-pill">Member</span>
+        <span id="role-badge" class="role-pill role-member">Member</span>
       </div>
       <button id="btn-signout" class="btn-secondary btn-sm">Sign Out</button>
     </div>
@@ -233,9 +241,9 @@
     <div id="staff-container" class="hidden">
       <!-- Owner-Only Box: Manage Admins -->
       <div id="owner-admin-box" class="settings-box hidden" style="border-color: rgba(168, 85, 247, 0.45);">
-        <h3 style="font-size:1rem; margin-bottom:0.4rem; color:#d8b4fe;">💎 Owner Controls: Manage Admins</h3>
+        <h3 style="font-size:1rem; margin-bottom:0.4rem; color:#d8b4fe;">💎 Owner Panel: Manage Admins</h3>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
-          Promote or remove admins by username. (Owners can only be added in the Supabase Dashboard.)
+          Promote or remove admins by username. (Owners are managed only in the Supabase Dashboard.)
         </p>
         <div id="admin-alert" class="alert alert-danger"></div>
         <div id="admin-success" class="alert alert-success"></div>
@@ -255,9 +263,9 @@
 
       <!-- Owner & Admin Box: Manage Moderators -->
       <div id="admin-mod-box" class="settings-box hidden">
-        <h3 style="font-size:1rem; margin-bottom:0.4rem;">👑 Staff Controls: Manage Moderators</h3>
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">👑 Admin & Owner Panel: Manage Moderators</h3>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
-          Promote or remove moderators by username.
+          Promote or remove moderators by username. Moderators can view reports and hide/unhide public clips.
         </p>
         <div id="mod-alert" class="alert alert-danger"></div>
         <div id="mod-success" class="alert alert-success"></div>
@@ -275,12 +283,18 @@
         </div>
       </div>
 
-      <!-- Staff Guide Box -->
+      <!-- Reports Queue (Visible to Owners, Admins, and Moderators) -->
       <div class="settings-box">
-        <h3 style="font-size:1rem; margin-bottom:0.4rem;">🛡️ Moderation Guide</h3>
-        <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.45;">
-          Go to the <strong>Public Feed</strong> tab to review public clips. As staff, you can <strong>Hide</strong> rule-breaking clips (hiding them from normal users while keeping them visible to staff and the uploader) or permanently <strong>Delete</strong> them.
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+          <h3 style="font-size:1rem;">🚩 User Reports Queue</h3>
+          <button type="button" id="btn-refresh-reports" class="btn-secondary btn-sm">Refresh</button>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          Review reported sounds and users. Moderators can hide/unhide clips; Admins and Owners can also permanently delete clips.
         </p>
+        <div id="reports-list">
+          <p style="font-size:0.85rem; color:var(--text-muted);">Loading reports...</p>
+        </div>
       </div>
     </div>
 
@@ -294,6 +308,7 @@
         <li><strong>Your email and scrambled password (or your GitHub account info):</strong> So you can sign up, sign in, and keep your account yours. If you sign in with GitHub, we get your basic account info from GitHub instead of a password. If you use email, we never see your real password—only a scrambled code.</li>
         <li><strong>Your username:</strong> So other people know who shared a clip with them without seeing your email.</li>
         <li><strong>Your audio files, titles, and sharing settings:</strong> Saved in our storage and database so you can store, play, and share your sounds.</li>
+        <li><strong>Reports and blocked users:</strong> When you report a clip/user or block someone, we save that record so staff can review rule-breaking content and so blocked users' clips stay hidden from you.</li>
         <li><strong>Temporary device permission (not saved):</strong> When you click <em>Enable Output Device Detection</em>, the browser asks for microphone access just so it can list your speakers and virtual cables. We immediately stop the connection and never save or record anything from it.</li>
       </ul>
 
@@ -303,6 +318,7 @@
         <li><strong>Private clips:</strong> Only you in the app (though as the app creator, I can technically see stored files inside the Supabase database).</li>
         <li><strong>Shared clips:</strong> Only you and the exact usernames you list.</li>
         <li><strong>Public clips:</strong> Everyone signed in to the app, plus <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> who keep the public feed safe.</li>
+        <li><strong>Reports:</strong> Only you when submitting, and <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> in the Staff Panel.</li>
       </ul>
 
       <h4>3. How to delete it</h4>
@@ -317,6 +333,17 @@
 
     <!-- Settings Section -->
     <div id="settings-container" class="hidden">
+      <!-- Blocked Users Box -->
+      <div class="settings-box">
+        <h3 style="font-size:1rem; margin-bottom:0.4rem;">🚫 Blocked Users</h3>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          People you block will not appear in your Public Feed or Shared With You tab.
+        </p>
+        <div id="blocked-users-list">
+          <p style="font-size:0.85rem; color:var(--text-muted);">Loading blocked users...</p>
+        </div>
+      </div>
+
       <!-- Password Box (Only shown for Email/Password users) -->
       <div id="password-settings-box" class="settings-box">
         <h3 style="font-size:1rem; margin-bottom:0.75rem;">Change Password</h3>
@@ -358,6 +385,6 @@
   </footer>
 
   <script src="config.js"></script>
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>

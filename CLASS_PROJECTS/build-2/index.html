@@ -24,7 +24,7 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
-    .container { width: 100%; max-width: 720px; background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
+    .container { width: 100%; max-width: 740px; background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
     .brand { text-align: center; margin-bottom: 1.5rem; }
     .brand h1 { font-size: 2rem; }
     .brand p { color: var(--text-muted); font-size: 0.9rem; }
@@ -45,6 +45,7 @@
     .btn-success:hover { background-color: var(--success); color: #0f172a; }
     .alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
     .alert-danger { background-color: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5; }
+    .alert-warning { background-color: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); color: #fcd34d; }
     .alert-success { background-color: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: #6ee7b7; }
     .hidden { display: none !important; }
     .user-badge { background-color: var(--card-inner); padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-light); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; }
@@ -53,6 +54,7 @@
     .role-admin { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--danger); }
     .role-mod { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid var(--warning); }
     .role-member { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid var(--border-light); }
+    .warn-count-pill { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid var(--warning); margin-left: 0.4rem; }
     .nav-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-light); margin-bottom: 1.5rem; padding-bottom: 0.5rem; flex-wrap: wrap; }
     .tab-btn { background: none; border: none; color: var(--text-muted); padding: 0.5rem 0.85rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; flex: none; }
     .tab-btn.active { background-color: var(--accent); color: white; }
@@ -71,9 +73,10 @@
     .btn-sm { padding: 0.35rem 0.6rem; font-size: 0.75rem; border-radius: 6px; flex: none; }
     audio { width: 100%; height: 40px; margin-top: 0.25rem; }
 
-    /* Staff & Report List Items */
+    /* Staff, Warning & Report List Items */
     .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0.85rem; background: var(--bg-color); border: 1px solid var(--border-light); border-radius: 8px; margin-top: 0.5rem; gap: 0.75rem; flex-wrap: wrap; }
     .report-card { padding: 0.85rem 1rem; background: var(--bg-color); border: 1px solid var(--border-light); border-radius: 8px; margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .warn-reason-item { font-size: 0.8rem; color: #cbd5e1; padding: 0.35rem 0.6rem; background: rgba(245, 158, 11, 0.07); border-left: 2px solid var(--warning); border-radius: 4px; margin-top: 0.35rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
     .status-pill { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 4px; }
     .status-pending { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
     .status-reviewed { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
@@ -134,7 +137,7 @@
         <li><strong>Your email and scrambled password (or your GitHub account info):</strong> So you can sign up, sign in, and keep your account yours. If you sign in with GitHub, we get your basic account info from GitHub instead of a password. If you use email, we never see your real password—only a scrambled code.</li>
         <li><strong>Your username:</strong> So other people know who shared a clip with them without seeing your email.</li>
         <li><strong>Your audio files, titles, and sharing settings:</strong> Saved in our storage and database so you can store, play, and share your sounds.</li>
-        <li><strong>Reports and blocked users:</strong> When you report a clip/user or block someone, we save that record so staff can review rule-breaking content and so blocked users' clips stay hidden from you.</li>
+        <li><strong>Reports, warnings, and blocked users:</strong> When you report a clip/user or block someone, we save that record so staff can review rule-breaking content (or false reports), issue warnings, and keep blocked users' clips hidden from you.</li>
         <li><strong>Temporary device permission (not saved):</strong> When you click <em>Enable Output Device Detection</em>, the browser asks for microphone access just so it can list your speakers and virtual cables. We immediately stop the connection and never save or record anything from it.</li>
       </ul>
 
@@ -144,13 +147,13 @@
         <li><strong>Private clips:</strong> Only you in the app (though as the app creator, I can technically see stored files inside the Supabase database).</li>
         <li><strong>Shared clips:</strong> Only you and the exact usernames you list.</li>
         <li><strong>Public clips:</strong> Everyone signed in to the app, plus <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> who keep the public feed safe.</li>
-        <li><strong>Reports:</strong> Only you when submitting, and <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> in the Staff Panel.</li>
+        <li><strong>Reports & Warnings:</strong> Reports are visible to staff; your own warnings are visible to you, <strong>admins</strong>, and <strong>owners</strong>.</li>
       </ul>
 
       <h4>3. How to delete it</h4>
       <ul>
         <li><strong>One clip at a time:</strong> Click the <strong>Delete</strong> button next to any clip in your <strong>Personal Vault</strong>. This removes both the sound file and its title.</li>
-        <li><strong>Delete My Data & Account button (in Settings):</strong> Permanently removes your login account, username, profile, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
+        <li><strong>Delete My Data & Account button (in Settings):</strong> Permanently removes your login account, username, profile, warnings, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
       </ul>
 
       <h4>4. What my app never saves</h4>
@@ -187,6 +190,9 @@
       </div>
       <button id="btn-signout" class="btn-secondary btn-sm">Sign Out</button>
     </div>
+
+    <!-- User Warning Banner (Shown if the signed-in user has warnings) -->
+    <div id="my-warnings-banner" class="alert alert-warning" style="line-height:1.45;"></div>
 
     <!-- Dual Speakers Control Header -->
     <div class="speaker-controls">
@@ -283,6 +289,36 @@
         </div>
       </div>
 
+      <!-- Owner & Admin Box: Issue Warnings & Warned Users Leaderboard -->
+      <div id="warned-users-box" class="settings-box hidden" style="border-color: rgba(245, 158, 11, 0.45);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+          <h3 style="font-size:1rem; color:#fcd34d;">⚠️ Warnings & Warned Users (Most → Least)</h3>
+          <button type="button" id="btn-refresh-warnings" class="btn-secondary btn-sm">Refresh</button>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.85rem;">
+          Warn any user by username for any reason. Only users with 1 or more warnings appear below. Owners can permanently ban & delete a user's account.
+        </p>
+
+        <div id="manual-warn-alert" class="alert alert-danger"></div>
+        <div id="manual-warn-success" class="alert alert-success"></div>
+
+        <!-- Manual Warn by @username -->
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+          <input type="text" id="input-warn-username" placeholder="@username to warn" style="flex:1; min-width:140px;" />
+          <input type="text" id="input-warn-reason" placeholder="Reason (e.g. false reports, bad audio)" style="flex:2; min-width:200px;" />
+          <button type="button" id="btn-manual-warn" class="btn-warning" style="flex:none;">⚠️ Issue Warning</button>
+        </div>
+
+        <!-- Search Warned Users -->
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <input type="text" id="search-warned-input" placeholder="🔎 Search warned users by @username or reason..." />
+        </div>
+
+        <div id="warned-users-list">
+          <p style="font-size:0.85rem; color:var(--text-muted);">Loading warned users...</p>
+        </div>
+      </div>
+
       <!-- Reports Queue (Visible to Owners, Admins, and Moderators) -->
       <div class="settings-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
@@ -290,7 +326,7 @@
           <button type="button" id="btn-refresh-reports" class="btn-secondary btn-sm">Refresh</button>
         </div>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">
-          Review reported sounds and users. Moderators can hide/unhide clips; Admins and Owners can also permanently delete clips.
+          Review reported sounds, see who submitted each report, and issue warnings for rule violations or false reports.
         </p>
         <div id="reports-list">
           <p style="font-size:0.85rem; color:var(--text-muted);">Loading reports...</p>
@@ -308,7 +344,7 @@
         <li><strong>Your email and scrambled password (or your GitHub account info):</strong> So you can sign up, sign in, and keep your account yours. If you sign in with GitHub, we get your basic account info from GitHub instead of a password. If you use email, we never see your real password—only a scrambled code.</li>
         <li><strong>Your username:</strong> So other people know who shared a clip with them without seeing your email.</li>
         <li><strong>Your audio files, titles, and sharing settings:</strong> Saved in our storage and database so you can store, play, and share your sounds.</li>
-        <li><strong>Reports and blocked users:</strong> When you report a clip/user or block someone, we save that record so staff can review rule-breaking content and so blocked users' clips stay hidden from you.</li>
+        <li><strong>Reports, warnings, and blocked users:</strong> When you report a clip/user or block someone, we save that record so staff can review rule-breaking content (or false reports), issue warnings, and keep blocked users' clips hidden from you.</li>
         <li><strong>Temporary device permission (not saved):</strong> When you click <em>Enable Output Device Detection</em>, the browser asks for microphone access just so it can list your speakers and virtual cables. We immediately stop the connection and never save or record anything from it.</li>
       </ul>
 
@@ -318,13 +354,13 @@
         <li><strong>Private clips:</strong> Only you in the app (though as the app creator, I can technically see stored files inside the Supabase database).</li>
         <li><strong>Shared clips:</strong> Only you and the exact usernames you list.</li>
         <li><strong>Public clips:</strong> Everyone signed in to the app, plus <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> who keep the public feed safe.</li>
-        <li><strong>Reports:</strong> Only you when submitting, and <strong>moderators</strong>, <strong>admins</strong>, and <strong>owners</strong> in the Staff Panel.</li>
+        <li><strong>Reports & Warnings:</strong> Reports are visible to staff; your own warnings are visible to you, <strong>admins</strong>, and <strong>owners</strong>.</li>
       </ul>
 
       <h4>3. How to delete it</h4>
       <ul>
         <li><strong>One clip at a time:</strong> Click the <strong>Delete</strong> button next to any clip in your <strong>Personal Vault</strong>. This removes both the sound file and its title.</li>
-        <li><strong>Delete My Data & Account button (in Settings):</strong> Permanently removes your login account, username, profile, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
+        <li><strong>Delete My Data & Account button (in Settings):</strong> Permanently removes your login account, username, profile, warnings, and all of your saved audio files. It does <strong>not</strong> remove copies someone else already downloaded to their own phone or computer.</li>
       </ul>
 
       <h4>4. What my app never saves</h4>
@@ -385,6 +421,6 @@
   </footer>
 
   <script src="config.js"></script>
-  <script src="app.js?v=19"></script>
+  <script src="app.js?v=22"></script>
 </body>
 </html>

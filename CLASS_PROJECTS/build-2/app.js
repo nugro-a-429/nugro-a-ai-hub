@@ -24,6 +24,7 @@ const authAlert = document.getElementById('auth-alert');
 const authSuccess = document.getElementById('auth-success');
 const userDisplay = document.getElementById('user-display');
 const roleBadge = document.getElementById('role-badge');
+const myWarningsBanner = document.getElementById('my-warnings-banner');
 
 const inputUsername = document.getElementById('input-username');
 const btnSaveUsername = document.getElementById('btn-save-username');
@@ -58,6 +59,16 @@ const modList = document.getElementById('mod-list');
 const modAlert = document.getElementById('mod-alert');
 const modSuccess = document.getElementById('mod-success');
 
+const warnedUsersBox = document.getElementById('warned-users-box');
+const btnRefreshWarnings = document.getElementById('btn-refresh-warnings');
+const inputWarnUsername = document.getElementById('input-warn-username');
+const inputWarnReason = document.getElementById('input-warn-reason');
+const btnManualWarn = document.getElementById('btn-manual-warn');
+const manualWarnAlert = document.getElementById('manual-warn-alert');
+const manualWarnSuccess = document.getElementById('manual-warn-success');
+const searchWarnedInput = document.getElementById('search-warned-input');
+const warnedUsersList = document.getElementById('warned-users-list');
+
 const reportsList = document.getElementById('reports-list');
 const btnRefreshReports = document.getElementById('btn-refresh-reports');
 
@@ -86,6 +97,7 @@ let isAdmin = false;
 let isModerator = false;
 let currentView = 'personal';
 let cachedClips = [];
+let cachedWarnings = [];
 let hiddenClipIds = new Set();
 let blockedUserIds = new Set();
 
@@ -137,6 +149,124 @@ function getUserRoleInfo(uid) {
   if (adminIdsSet.has(uid)) return { label: 'Admin', className: 'role-admin' };
   if (modIdsSet.has(uid)) return { label: 'Moderator', className: 'role-mod' };
   return { label: 'Member', className: 'role-member' };
+}
+
+// Issue Warning Helper (Owners & Admins)
+async function issueWarning(targetUserId, defaultPromptText) {
+  if (!isOwner && !isAdmin) return;
+  const targetName = profilesMap[targetUserId] ? `@${profilesMap[targetUserId]}` : targetUserId;
+
+  if (targetUserId === currentUser.id) {
+    alert('You cannot warn yourself.');
+    return;
+  }
+  if (ownerIdsSet.has(targetUserId)) {
+    alert('You cannot warn an Owner.');
+    return;
+  }
+
+  const reason = prompt(`Issue warning to ${targetName}.\nEnter reason:`, defaultPromptText || '');
+  if (!reason || !reason.trim()) return;
+
+  const { error } = await client.from('warnings').insert({
+    user_id: targetUserId,
+    issued_by: currentUser.id,
+    reason: reason.trim()
+  });
+
+  if (error) {
+    alert(`Failed to warn user: ${error.message}`);
+  } else {
+    alert(`Warning issued to ${targetName}.`);
+    await loadAllWarnings();
+  }
+}
+
+// Manual Warn by @username inside Staff Panel (Owners & Admins)
+if (btnManualWarn) {
+  btnManualWarn.addEventListener('click', async () => {
+    if (!isOwner && !isAdmin) return;
+    manualWarnAlert.style.display = 'none';
+    manualWarnSuccess.style.display = 'none';
+
+    const targetUsername = inputWarnUsername.value.trim().toLowerCase().replace(/^@/, '');
+    const reason = inputWarnReason.value.trim();
+
+    if (!targetUsername) {
+      manualWarnAlert.textContent = 'Please enter a @username.';
+      manualWarnAlert.style.display = 'block';
+      return;
+    }
+    if (!reason) {
+      manualWarnAlert.textContent = 'Please enter a reason for the warning.';
+      manualWarnAlert.style.display = 'block';
+      return;
+    }
+
+    const { data: targetProfile, error: findErr } = await client
+      .from('profiles')
+      .select('id, username')
+      .eq('username', targetUsername)
+      .maybeSingle();
+
+    if (findErr || !targetProfile) {
+      manualWarnAlert.textContent = `User @${targetUsername} not found.`;
+      manualWarnAlert.style.display = 'block';
+      return;
+    }
+
+    if (targetProfile.id === currentUser.id) {
+      manualWarnAlert.textContent = 'You cannot warn yourself.';
+      manualWarnAlert.style.display = 'block';
+      return;
+    }
+
+    if (ownerIdsSet.has(targetProfile.id)) {
+      manualWarnAlert.textContent = 'You cannot warn an Owner.';
+      manualWarnAlert.style.display = 'block';
+      return;
+    }
+
+    const { error: insertErr } = await client.from('warnings').insert({
+      user_id: targetProfile.id,
+      issued_by: currentUser.id,
+      reason: reason
+    });
+
+    if (insertErr) {
+      manualWarnAlert.textContent = `Failed to issue warning: ${insertErr.message}`;
+      manualWarnAlert.style.display = 'block';
+    } else {
+      manualWarnSuccess.textContent = `Warning issued to @${targetUsername}!`;
+      manualWarnSuccess.style.display = 'block';
+      inputWarnUsername.value = '';
+      inputWarnReason.value = '';
+      await loadAllWarnings();
+    }
+  });
+}
+
+// Load Current User's Own Warnings Banner
+async function loadMyWarningsBanner() {
+  if (!currentUser) return;
+  const { data: myWarns } = await client
+    .from('warnings')
+    .select('reason, created_at')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false });
+
+  if (myWarns && myWarns.length > 0) {
+    const listHtml = myWarns
+      .map(w => `<li><strong>${w.reason}</strong> <span style="opacity:0.75;">(${new Date(w.created_at).toLocaleDateString()})</span></li>`)
+      .join('');
+    myWarningsBanner.innerHTML = `
+      <strong>⚠️ Account Notice — You have ${myWarns.length} active warning${myWarns.length > 1 ? 's' : ''}:</strong>
+      <ul style="margin-top:0.35rem; padding-left:1.25rem;">${listHtml}</ul>
+    `;
+    myWarningsBanner.style.display = 'block';
+  } else {
+    myWarningsBanner.style.display = 'none';
+  }
 }
 
 // Auth Event Handlers
@@ -300,6 +430,7 @@ btnSaveUsername.addEventListener('click', async () => {
     appScreen.classList.remove('hidden');
     userDisplay.textContent = `@${currentUsername}`;
     await refreshDirectoryAndRoles();
+    await loadMyWarningsBanner();
     configureProviderUI();
     populateAudioDevices();
     loadClips();
@@ -315,10 +446,6 @@ async function refreshDirectoryAndRoles() {
     client.from('moderators').select('user_id'),
     client.from('blocked_users').select('blocked_id').eq('blocker_id', currentUser.id)
   ]);
-
-  if (ownersRes.error) console.warn('owners query warning:', ownersRes.error.message);
-  if (adminsRes.error) console.warn('admins query warning:', adminsRes.error.message);
-  if (modsRes.error) console.warn('moderators query warning:', modsRes.error.message);
 
   profilesMap = {};
   (profilesRes.data || []).forEach(p => { profilesMap[p.id] = p.username; });
@@ -341,25 +468,188 @@ async function refreshDirectoryAndRoles() {
     staffTab.classList.remove('hidden');
     ownerAdminBox.classList.remove('hidden');
     adminModBox.classList.remove('hidden');
+    warnedUsersBox.classList.remove('hidden');
     renderAdminsList();
     renderModsList();
+    loadAllWarnings();
     loadReports();
   } else if (isAdmin) {
     staffTab.classList.remove('hidden');
     ownerAdminBox.classList.add('hidden');
     adminModBox.classList.remove('hidden');
+    warnedUsersBox.classList.remove('hidden');
     renderModsList();
+    loadAllWarnings();
     loadReports();
   } else if (isModerator) {
     staffTab.classList.remove('hidden');
     ownerAdminBox.classList.add('hidden');
     adminModBox.classList.add('hidden');
+    warnedUsersBox.classList.add('hidden');
     loadReports();
   } else {
     staffTab.classList.add('hidden');
     ownerAdminBox.classList.add('hidden');
     adminModBox.classList.add('hidden');
+    warnedUsersBox.classList.add('hidden');
   }
+}
+
+// Warned Users Leaderboard (Sorted Most Warns -> Least Warns, Owners & Admins)
+if (btnRefreshWarnings) {
+  btnRefreshWarnings.addEventListener('click', loadAllWarnings);
+}
+if (searchWarnedInput) {
+  searchWarnedInput.addEventListener('input', renderWarnedUsersList);
+}
+
+async function loadAllWarnings() {
+  if (!isOwner && !isAdmin) return;
+  warnedUsersList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Loading warned users...</p>';
+
+  const { data, error } = await client
+    .from('warnings')
+    .select('id, user_id, issued_by, reason, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    warnedUsersList.innerHTML = `<p style="font-size:0.85rem; color:#fca5a5;">Could not load warnings: ${error.message}</p>`;
+    return;
+  }
+
+  cachedWarnings = data || [];
+  renderWarnedUsersList();
+}
+
+function renderWarnedUsersList() {
+  if (!isOwner && !isAdmin) return;
+  const searchTerm = (searchWarnedInput?.value || '').trim().toLowerCase().replace(/^@/, '');
+
+  // Group warnings by user_id (users with 0 warns do not appear)
+  const grouped = {};
+  cachedWarnings.forEach(w => {
+    if (!grouped[w.user_id]) {
+      grouped[w.user_id] = {
+        user_id: w.user_id,
+        username: profilesMap[w.user_id] || 'unknown',
+        warnings: []
+      };
+    }
+    grouped[w.user_id].warnings.push(w);
+  });
+
+  // Sort from MOST warns to LEAST warns
+  let sortedUsers = Object.values(grouped).sort((a, b) => b.warnings.length - a.warnings.length);
+
+  // Filter by searched username or warning reason
+  if (searchTerm) {
+    sortedUsers = sortedUsers.filter(entry => {
+      const matchesUser = entry.username.toLowerCase().includes(searchTerm);
+      const matchesReason = entry.warnings.some(w => w.reason.toLowerCase().includes(searchTerm));
+      return matchesUser || matchesReason;
+    });
+  }
+
+  if (sortedUsers.length === 0) {
+    warnedUsersList.innerHTML = searchTerm
+      ? '<p style="font-size:0.85rem; color:var(--text-muted);">No warned users match your search.</p>'
+      : '<p style="font-size:0.85rem; color:var(--text-muted);">No users have warnings right now.</p>';
+    return;
+  }
+
+  warnedUsersList.innerHTML = '';
+  sortedUsers.forEach(entry => {
+    const roleInfo = getUserRoleInfo(entry.user_id);
+    const count = entry.warnings.length;
+
+    const card = document.createElement('div');
+    card.className = 'report-card';
+
+    const reasonsHtml = entry.warnings.map(w => {
+      const issuerName = profilesMap[w.issued_by] ? `@${profilesMap[w.issued_by]}` : 'Staff';
+      const dateStr = new Date(w.created_at).toLocaleDateString();
+      return `
+        <div class="warn-reason-item">
+          <span>
+            <strong>${w.reason}</strong>
+            <span style="color:var(--text-muted); font-size:0.75rem;"> — by ${issuerName} (${dateStr})</span>
+          </span>
+          <button type="button" class="btn-secondary btn-sm btn-clear-single-warn" data-wid="${w.id}" title="Remove this warning">✕</button>
+        </div>
+      `;
+    }).join('');
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div>
+          <strong style="font-size:0.95rem;">@${entry.username}</strong>
+          <span class="role-pill ${roleInfo.className}">${roleInfo.label}</span>
+          <span class="warn-count-pill">⚠️ ${count} ${count === 1 ? 'Warning' : 'Warnings'}</span>
+        </div>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <button type="button" class="btn-warning btn-sm btn-warn-again">+ Warn</button>
+          ${isOwner && !ownerIdsSet.has(entry.user_id) ? `
+            <button type="button" class="btn-danger btn-sm btn-ban-user">🔨 Ban & Delete Account</button>
+          ` : ''}
+        </div>
+      </div>
+      <div>${reasonsHtml}</div>
+    `;
+
+    // Issue another warning
+    card.querySelector('.btn-warn-again').addEventListener('click', () => {
+      issueWarning(entry.user_id, '');
+    });
+
+    // Clear individual warning
+    card.querySelectorAll('.btn-clear-single-warn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const wid = btn.getAttribute('data-wid');
+        const { error } = await client.from('warnings').delete().eq('id', wid);
+        if (error) alert(`Failed to remove warning: ${error.message}`);
+        else await loadAllWarnings();
+      });
+    });
+
+    // Owner-Only Ban & Permanently Delete User Account
+    const banBtn = card.querySelector('.btn-ban-user');
+    if (banBtn) {
+      banBtn.addEventListener('click', async () => {
+        const confirmed = confirm(
+          `PERMANENT BAN: Are you sure you want to delete @${entry.username}'s account, all their clips, and clear them from the warnings list? This cannot be undone.`
+        );
+        if (!confirmed) return;
+
+        // Clean up their storage files first
+        const { data: theirClips } = await client
+          .from('clips')
+          .select('file_path')
+          .eq('user_id', entry.user_id);
+
+        if (theirClips && theirClips.length > 0) {
+          const paths = theirClips.map(c => c.file_path).filter(Boolean);
+          if (paths.length > 0) {
+            await client.storage.from('audio_clips').remove(paths);
+          }
+        }
+
+        // Delete auth.users account via Owner-only RPC (cascades profile, clips, warnings)
+        const { error: banErr } = await client.rpc('ban_user_account', {
+          target_user_id: entry.user_id
+        });
+
+        if (banErr) {
+          alert(`Ban failed: ${banErr.message}`);
+        } else {
+          alert(`@${entry.username} has been banned and their account & warnings were removed.`);
+          await refreshDirectoryAndRoles();
+          loadClips();
+        }
+      });
+    }
+
+    warnedUsersList.appendChild(card);
+  });
 }
 
 // Render Blocked Users List (Settings)
@@ -606,6 +896,12 @@ async function loadReports() {
         ${rep.clip_id && (isOwner || isAdmin) ? `
           <button type="button" class="btn-danger btn-sm btn-rep-delete">🗑️ Delete Clip</button>
         ` : ''}
+        ${(isOwner || isAdmin) && rep.reported_user_id ? `
+          <button type="button" class="btn-warning btn-sm btn-warn-target">⚠️ Warn ${targetName}</button>
+        ` : ''}
+        ${(isOwner || isAdmin) && rep.reporter_id ? `
+          <button type="button" class="btn-warning btn-sm btn-warn-reporter">⚠️ Warn Reporter (${reporterName})</button>
+        ` : ''}
         <button type="button" class="btn-secondary btn-sm btn-rep-status" data-status="reviewed">Mark Reviewed</button>
         <button type="button" class="btn-success btn-sm btn-rep-status" data-status="resolved">Mark Resolved</button>
         <button type="button" class="btn-secondary btn-sm btn-rep-status" data-status="dismissed">Dismiss</button>
@@ -649,6 +945,22 @@ async function loadReports() {
         await client.from('reports').update({ status: 'resolved' }).eq('id', rep.id);
         loadReports();
         loadClips();
+      });
+    }
+
+    // Warn Reported User (Owner & Admin)
+    const warnTargetBtn = card.querySelector('.btn-warn-target');
+    if (warnTargetBtn) {
+      warnTargetBtn.addEventListener('click', () => {
+        issueWarning(rep.reported_user_id, `Rule violation on "${clipTitle}" (${rep.reason})`);
+      });
+    }
+
+    // Warn Reporter for False Report (Owner & Admin)
+    const warnReporterBtn = card.querySelector('.btn-warn-reporter');
+    if (warnReporterBtn) {
+      warnReporterBtn.addEventListener('click', () => {
+        issueWarning(rep.reporter_id, `False report submitted on "${clipTitle}"`);
       });
     }
 
@@ -888,7 +1200,7 @@ async function renderClips() {
 
     const isClipUploader = clip.user_id === currentUser.id;
     const isStaff = isOwner || isAdmin || isModerator;
-    const canDelete = isClipUploader || isOwner || isAdmin; // Moderators can ONLY hide/unhide!
+    const canDelete = isClipUploader || isOwner || isAdmin;
     const isHidden = hiddenClipIds.has(clip.id);
 
     const authorUsername = profilesMap[clip.user_id] ? `@${profilesMap[clip.user_id]}` : '@unknown';
@@ -922,6 +1234,10 @@ async function renderClips() {
           ${!isClipUploader ? `
             <button class="btn-secondary btn-sm btn-report" title="Report clip or user">🚩 Report</button>
             <button class="btn-secondary btn-sm btn-block" title="Block user">🚫 Block</button>
+          ` : ''}
+
+          ${!isClipUploader && (isOwner || isAdmin) && !ownerIdsSet.has(clip.user_id) ? `
+            <button class="btn-warning btn-sm btn-warn-clip-author" title="Warn user">⚠️ Warn</button>
           ` : ''}
 
           ${isStaff && clip.visibility === 'public' ? `
@@ -1033,6 +1349,14 @@ async function renderClips() {
       });
     }
 
+    // Warn Clip Author (Owners & Admins)
+    const warnAuthorBtn = clipCard.querySelector('.btn-warn-clip-author');
+    if (warnAuthorBtn) {
+      warnAuthorBtn.addEventListener('click', () => {
+        issueWarning(clip.user_id, `Rule violation on "${clip.title}"`);
+      });
+    }
+
     // Staff Hide / Unhide Controls (Owners, Admins, Moderators)
     const hideBtn = clipCard.querySelector('.btn-toggle-hide');
     if (hideBtn) {
@@ -1089,6 +1413,7 @@ client.auth.onAuthStateChange(async (event, session) => {
       appScreen.classList.remove('hidden');
       userDisplay.textContent = `@${currentUsername}`;
       await refreshDirectoryAndRoles();
+      await loadMyWarningsBanner();
       configureProviderUI();
       populateAudioDevices();
       loadClips();
@@ -1102,6 +1427,7 @@ client.auth.onAuthStateChange(async (event, session) => {
     isOwner = false;
     isAdmin = false;
     isModerator = false;
+    myWarningsBanner.style.display = 'none';
     btnDeleteMyData.disabled = false;
     btnDeleteMyData.textContent = '🗑️ Delete My Data & Account';
     appScreen.classList.add('hidden');

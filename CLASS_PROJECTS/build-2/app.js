@@ -83,6 +83,12 @@ let currentView = 'personal';
 let cachedClips = [];
 let hiddenClipIds = new Set();
 
+// Global Lookup Maps for Authors & Roles
+let profilesMap = {};
+let ownerIdsSet = new Set();
+let adminIdsSet = new Set();
+let modIdsSet = new Set();
+
 // Toggle Privacy Policy on Auth Screen
 if (btnToggleAuthPrivacy) {
   btnToggleAuthPrivacy.addEventListener('click', () => {
@@ -118,6 +124,13 @@ function showAuthSuccess(msg) {
   authAlert.style.display = 'none';
   authSuccess.textContent = msg;
   authSuccess.style.display = 'block';
+}
+
+function getUserRoleInfo(uid) {
+  if (ownerIdsSet.has(uid)) return { label: 'Owner', className: 'role-owner' };
+  if (adminIdsSet.has(uid)) return { label: 'Admin', className: 'role-admin' };
+  if (modIdsSet.has(uid)) return { label: 'Moderator', className: 'role-mod' };
+  return { label: 'Member', className: 'role-member' };
 }
 
 // Auth Event Handlers
@@ -280,117 +293,93 @@ btnSaveUsername.addEventListener('click', async () => {
     usernameScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
     userDisplay.textContent = `@${currentUsername}`;
-    await checkStaffRoles();
+    await refreshDirectoryAndRoles();
     configureProviderUI();
     populateAudioDevices();
     loadClips();
   }
 });
 
-// Check Owner, Admin, and Moderator Tables
-async function checkStaffRoles() {
-  isOwner = false;
-  isAdmin = false;
-  isModerator = false;
+// Fetch All Profiles, Owners, Admins, and Moderators
+async function refreshDirectoryAndRoles() {
+  const [profilesRes, ownersRes, adminsRes, modsRes] = await Promise.all([
+    client.from('profiles').select('id, username'),
+    client.from('owners').select('user_id'),
+    client.from('admins').select('user_id'),
+    client.from('moderators').select('user_id')
+  ]);
 
-  const { data: ownerRow } = await client
-    .from('owners')
-    .select('user_id')
-    .eq('user_id', currentUser.id)
-    .maybeSingle();
-  if (ownerRow) isOwner = true;
+  profilesMap = {};
+  (profilesRes.data || []).forEach(p => { profilesMap[p.id] = p.username; });
 
-  const { data: adminRow } = await client
-    .from('admins')
-    .select('user_id')
-    .eq('user_id', currentUser.id)
-    .maybeSingle();
-  if (adminRow) isAdmin = true;
+  ownerIdsSet = new Set((ownersRes.data || []).map(r => r.user_id));
+  adminIdsSet = new Set((adminsRes.data || []).map(r => r.user_id));
+  modIdsSet = new Set((modsRes.data || []).map(r => r.user_id));
 
-  const { data: modRow } = await client
-    .from('moderators')
-    .select('user_id')
-    .eq('user_id', currentUser.id)
-    .maybeSingle();
-  if (modRow) isModerator = true;
+  isOwner = ownerIdsSet.has(currentUser.id);
+  isAdmin = adminIdsSet.has(currentUser.id);
+  isModerator = modIdsSet.has(currentUser.id);
 
-  // Update Role Badge & Staff Tab visibility
+  // Update Header Role Badge & Staff Panel Visibility
+  const myRole = getUserRoleInfo(currentUser.id);
+  roleBadge.textContent = myRole.label;
+  roleBadge.className = `role-pill ${myRole.className}`;
+
   if (isOwner) {
-    roleBadge.textContent = 'Owner';
-    roleBadge.className = 'role-pill role-owner';
     staffTab.classList.remove('hidden');
     ownerAdminBox.classList.remove('hidden');
     adminModBox.classList.remove('hidden');
-    loadAdmins();
-    loadModerators();
+    renderAdminsList();
+    renderModsList();
   } else if (isAdmin) {
-    roleBadge.textContent = 'Admin';
-    roleBadge.className = 'role-pill role-admin';
     staffTab.classList.remove('hidden');
     ownerAdminBox.classList.add('hidden');
     adminModBox.classList.remove('hidden');
-    loadModerators();
+    renderModsList();
   } else if (isModerator) {
-    roleBadge.textContent = 'Moderator';
-    roleBadge.className = 'role-pill role-mod';
     staffTab.classList.remove('hidden');
     ownerAdminBox.classList.add('hidden');
     adminModBox.classList.add('hidden');
   } else {
-    roleBadge.classList.add('hidden');
     staffTab.classList.add('hidden');
     ownerAdminBox.classList.add('hidden');
     adminModBox.classList.add('hidden');
   }
 }
 
-// Owner Panel: Load Admins
-async function loadAdmins() {
+// Render Admin List (Owner Panel)
+function renderAdminsList() {
   if (!isOwner) return;
-  adminList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Loading...</p>';
+  const adminIds = Array.from(adminIdsSet);
 
-  const { data: admins, error } = await client.from('admins').select('user_id');
-  if (error) {
-    adminList.innerHTML = `<p style="font-size:0.85rem; color:#fca5a5;">${error.message}</p>`;
-    return;
-  }
-
-  if (!admins || admins.length === 0) {
+  if (adminIds.length === 0) {
     adminList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.4rem;">No admins assigned yet.</p>';
     return;
   }
 
-  const adminIds = admins.map(a => a.user_id);
-  const { data: profiles } = await client
-    .from('profiles')
-    .select('id, username')
-    .in('id', adminIds);
-
-  const profileMap = {};
-  (profiles || []).forEach(p => { profileMap[p.id] = p.username; });
-
   adminList.innerHTML = '';
-  admins.forEach(a => {
-    const uname = profileMap[a.user_id] ? `@${profileMap[a.user_id]}` : a.user_id;
+  adminIds.forEach(uid => {
+    const uname = profilesMap[uid] ? `@${profilesMap[uid]}` : uid;
     const item = document.createElement('div');
     item.className = 'mod-item';
     item.innerHTML = `
       <span style="font-size:0.9rem; font-weight:600;">${uname}</span>
-      <button type="button" class="btn-danger btn-sm btn-remove-admin" data-uid="${a.user_id}">Remove</button>
+      <button type="button" class="btn-danger btn-sm btn-remove-admin">Remove</button>
     `;
     item.querySelector('.btn-remove-admin').addEventListener('click', async () => {
-      const { error: delErr } = await client.from('admins').delete().eq('user_id', a.user_id);
-      if (delErr) {
-        alert(`Failed to remove admin: ${delErr.message}`);
+      const { error } = await client.from('admins').delete().eq('user_id', uid);
+      if (error) {
+        alert(`Failed to remove admin: ${error.message}`);
       } else {
-        loadAdmins();
+        await refreshDirectoryAndRoles();
+        renderClips();
       }
     });
     adminList.appendChild(item);
   });
 }
 
-// Owner Panel: Add Admin by Username
+// Add Admin by Username (Owner Panel)
 if (btnAddAdmin) {
   btnAddAdmin.addEventListener('click', async () => {
     adminAlert.style.display = 'none';
@@ -429,58 +418,45 @@ if (btnAddAdmin) {
       adminSuccess.textContent = `@${targetUsername} is now an admin!`;
       adminSuccess.style.display = 'block';
       inputAdminUsername.value = '';
-      loadAdmins();
+      await refreshDirectoryAndRoles();
+      renderClips();
     }
   });
 }
 
-// Owner & Admin Panel: Load Moderators
-async function loadModerators() {
+// Render Moderator List (Owner & Admin Panel)
+function renderModsList() {
   if (!isOwner && !isAdmin) return;
-  modList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Loading...</p>';
+  const modIds = Array.from(modIdsSet);
 
-  const { data: mods, error } = await client.from('moderators').select('user_id');
-  if (error) {
-    modList.innerHTML = `<p style="font-size:0.85rem; color:#fca5a5;">${error.message}</p>`;
-    return;
-  }
-
-  if (!mods || mods.length === 0) {
+  if (modIds.length === 0) {
     modList.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.4rem;">No moderators assigned yet.</p>';
     return;
   }
 
-  const modIds = mods.map(m => m.user_id);
-  const { data: profiles } = await client
-    .from('profiles')
-    .select('id, username')
-    .in('id', modIds);
-
-  const profileMap = {};
-  (profiles || []).forEach(p => { profileMap[p.id] = p.username; });
-
   modList.innerHTML = '';
-  mods.forEach(m => {
-    const uname = profileMap[m.user_id] ? `@${profileMap[m.user_id]}` : m.user_id;
+  modIds.forEach(uid => {
+    const uname = profilesMap[uid] ? `@${profilesMap[uid]}` : uid;
     const item = document.createElement('div');
     item.className = 'mod-item';
     item.innerHTML = `
       <span style="font-size:0.9rem; font-weight:600;">${uname}</span>
-      <button type="button" class="btn-danger btn-sm btn-remove-mod" data-uid="${m.user_id}">Remove</button>
+      <button type="button" class="btn-danger btn-sm btn-remove-mod">Remove</button>
     `;
     item.querySelector('.btn-remove-mod').addEventListener('click', async () => {
-      const { error: delErr } = await client.from('moderators').delete().eq('user_id', m.user_id);
-      if (delErr) {
-        alert(`Failed to remove moderator: ${delErr.message}`);
+      const { error } = await client.from('moderators').delete().eq('user_id', uid);
+      if (error) {
+        alert(`Failed to remove moderator: ${error.message}`);
       } else {
-        loadModerators();
+        await refreshDirectoryAndRoles();
+        renderClips();
       }
     });
     modList.appendChild(item);
   });
 }
 
-// Owner & Admin Panel: Add Moderator by Username
+// Add Moderator by Username (Owner & Admin Panel)
 if (btnAddMod) {
   btnAddMod.addEventListener('click', async () => {
     modAlert.style.display = 'none';
@@ -519,7 +495,8 @@ if (btnAddMod) {
       modSuccess.textContent = `@${targetUsername} is now a moderator!`;
       modSuccess.style.display = 'block';
       inputModUsername.value = '';
-      loadModerators();
+      await refreshDirectoryAndRoles();
+      renderClips();
     }
   });
 }
@@ -534,7 +511,7 @@ function configureProviderUI() {
 
 // Navigation Views
 document.querySelectorAll('.tab-btn').forEach(button => {
-  button.addEventListener('click', (e) => {
+  button.addEventListener('click', async (e) => {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     e.target.classList.add('active');
     currentView = e.target.getAttribute('data-view');
@@ -548,10 +525,12 @@ document.querySelectorAll('.tab-btn').forEach(button => {
     privacyContainer.classList.toggle('hidden', currentView !== 'privacy');
     settingsContainer.classList.toggle('hidden', currentView !== 'settings');
 
-    if (isClipView) loadClips();
+    if (isClipView) {
+      await refreshDirectoryAndRoles();
+      loadClips();
+    }
     if (currentView === 'staff') {
-      if (isOwner) loadAdmins();
-      if (isOwner || isAdmin) loadModerators();
+      await refreshDirectoryAndRoles();
     }
   });
 });
@@ -717,20 +696,29 @@ async function renderClips() {
       audioUrl = publicData.publicUrl;
     }
 
-    const isOwner = clip.user_id === currentUser.id;
+    const isClipUploader = clip.user_id === currentUser.id;
     const isStaff = isOwner || isAdmin || isModerator;
     const isHidden = hiddenClipIds.has(clip.id);
+
+    const authorUsername = profilesMap[clip.user_id] ? `@${profilesMap[clip.user_id]}` : '@unknown';
+    const authorRole = getUserRoleInfo(clip.user_id);
 
     const clipCard = document.createElement('div');
     clipCard.className = `clip-item ${isHidden ? 'is-hidden-clip' : ''}`;
     clipCard.innerHTML = `
       <div class="clip-top-row">
         <div>
-          <span class="clip-title">${clip.title}</span>
-          ${isHidden ? '<span class="hidden-badge">HIDDEN BY STAFF</span>' : ''}
+          <div>
+            <span class="clip-title">${clip.title}</span>
+            ${isHidden ? '<span class="hidden-badge">HIDDEN BY STAFF</span>' : ''}
+          </div>
+          <div class="clip-author">
+            Posted by <strong>${authorUsername}</strong>
+            <span class="role-pill ${authorRole.className}">${authorRole.label}</span>
+          </div>
         </div>
         <div class="clip-controls-row">
-          ${isOwner ? `
+          ${isClipUploader ? `
             <select class="clip-select visibility-select" data-id="${clip.id}">
               <option value="private" ${clip.visibility === 'private' ? 'selected' : ''}>🔒 Private</option>
               <option value="public" ${clip.visibility === 'public' ? 'selected' : ''}>🌐 Public</option>
@@ -746,7 +734,7 @@ async function renderClips() {
             </button>
           ` : ''}
 
-          ${isOwner || isStaff ? `
+          ${isClipUploader || isStaff ? `
             <button class="btn-danger btn-sm btn-delete" data-id="${clip.id}" data-path="${clip.file_path}">🗑️ Delete</button>
           ` : ''}
         </div>
@@ -759,7 +747,7 @@ async function renderClips() {
     audioElem.addEventListener('play', applyRouting);
     speakerCableSelect.addEventListener('change', applyRouting);
 
-    if (isOwner) {
+    if (isClipUploader) {
       const visSelect = clipCard.querySelector('.visibility-select');
       visSelect.addEventListener('change', async (e) => {
         const newVis = e.target.value;
@@ -850,7 +838,7 @@ client.auth.onAuthStateChange(async (event, session) => {
       usernameScreen.classList.add('hidden');
       appScreen.classList.remove('hidden');
       userDisplay.textContent = `@${currentUsername}`;
-      await checkStaffRoles();
+      await refreshDirectoryAndRoles();
       configureProviderUI();
       populateAudioDevices();
       loadClips();
